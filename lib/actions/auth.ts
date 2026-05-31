@@ -35,6 +35,12 @@ export async function signUp(formData: FormData) {
     return { error: profileError.message }
   }
 
+  // If email confirmation is enabled, signUp returns no session — sign in explicitly.
+  if (!data.session) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) return { error: signInError.message }
+  }
+
   redirect('/leaderboard')
 }
 
