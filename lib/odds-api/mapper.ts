@@ -1,4 +1,4 @@
-import type { OddsApiGame } from './client'
+import type { OddsApiGame, OddsApiOutcome } from './client'
 
 // Maps our sport labels to The Odds API sport keys
 export const SPORT_API_KEYS: Record<string, string> = {
@@ -15,8 +15,29 @@ export const SPORT_API_KEYS: Record<string, string> = {
   'Rugby':               'rugbyleague_nrl',
 }
 
+const ODDS_STOP_WORDS = new Set(['win', 'wins', 'over', 'under', 'the', 'at', 'vs', 'and'])
+
 export function normalizeTeam(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+}
+
+export function parseMatchup(eventName: string): { away: string; home: string } | null {
+  const parts = eventName.split(' @ ')
+  if (parts.length !== 2) return null
+  return { away: parts[0].trim(), home: parts[1].trim() }
+}
+
+export function findOutcomeForLabel(label: string, outcomes: OddsApiOutcome[]): OddsApiOutcome | null {
+  const labelWords = normalizeTeam(label)
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !ODDS_STOP_WORDS.has(w))
+  if (labelWords.length === 0) return null
+  return (
+    outcomes.find(o => {
+      const nameWords = normalizeTeam(o.name).split(/\s+/)
+      return labelWords.some(w => nameWords.includes(w))
+    }) ?? null
+  )
 }
 
 export function matchGame(

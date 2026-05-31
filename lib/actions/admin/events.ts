@@ -89,6 +89,21 @@ export async function deleteBetOption(optionId: string) {
   }
 }
 
+export async function updateBetOptionOdds(betOptionId: string, newOdds: number, bzId: string) {
+  try {
+    const supabase = await requireAdmin()
+    const { error } = await supabase
+      .from('bet_options')
+      .update({ odds: newOdds, odds_source: 'auto_confirmed' })
+      .eq('id', betOptionId)
+    if (error) return { error: error.message }
+    revalidatePath(`/admin/${bzId}/events`)
+    return { ok: true }
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
 export async function upsertSlateGame(formData: FormData) {
   try {
     const supabase = await requireAdmin()
