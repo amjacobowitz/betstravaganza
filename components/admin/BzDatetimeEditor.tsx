@@ -4,12 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { updateBetstravaganzaDates } from '@/lib/actions/admin/betstravaganza'
-
-function toDatetimeLocal(iso: string | null | undefined): string {
-  if (!iso) return ''
-  // datetime-local needs "YYYY-MM-DDTHH:MM"
-  return new Date(iso).toISOString().slice(0, 16)
-}
+import { toDatetimeLocalET, etDatetimeLocalToISO } from '@/lib/utils/datetime'
 
 export function BzDatetimeEditor({
   bzId,
@@ -29,7 +24,12 @@ export function BzDatetimeEditor({
     setLoading(true)
     setSaved(false)
     setError(null)
-    const result = await updateBetstravaganzaDates(bzId, new FormData(e.currentTarget))
+    const fd = new FormData(e.currentTarget)
+    for (const field of ['startDatetime', 'endDatetime']) {
+      const raw = fd.get(field) as string | null
+      if (raw) fd.set(field, etDatetimeLocalToISO(raw))
+    }
+    const result = await updateBetstravaganzaDates(bzId, fd)
     if (result.error) setError(result.error)
     else setSaved(true)
     setLoading(false)
@@ -42,16 +42,16 @@ export function BzDatetimeEditor({
           name="startDatetime"
           label="Event Start (slate locks)"
           type="datetime-local"
-          defaultValue={toDatetimeLocal(startDatetime)}
+          defaultValue={toDatetimeLocalET(startDatetime)}
         />
         <Input
           name="endDatetime"
           label="Event End"
           type="datetime-local"
-          defaultValue={toDatetimeLocal(endDatetime)}
+          defaultValue={toDatetimeLocalET(endDatetime)}
         />
       </div>
-      <p className="text-xs text-muted">Slate picks are locked at Event Start. Times are in your local timezone.</p>
+      <p className="text-xs text-muted">Slate picks are locked at Event Start. Times are Eastern (ET).</p>
       {error && <p className="text-xs text-danger">{error}</p>}
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" loading={loading}>Save Dates</Button>

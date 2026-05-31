@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { createBetstravaganza } from '@/lib/actions/admin/betstravaganza'
+import { etDatetimeLocalToISO } from '@/lib/utils/datetime'
 
 export function SetupForm() {
   const router = useRouter()
@@ -15,7 +16,12 @@ export function SetupForm() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const result = await createBetstravaganza(new FormData(e.currentTarget))
+    const fd = new FormData(e.currentTarget)
+    for (const field of ['startDatetime', 'endDatetime']) {
+      const raw = fd.get(field) as string | null
+      if (raw) fd.set(field, etDatetimeLocalToISO(raw))
+    }
+    const result = await createBetstravaganza(fd)
     if (result.error) {
       setError(result.error)
       setLoading(false)
@@ -40,7 +46,7 @@ export function SetupForm() {
         <Input name="startDatetime" label="Event Start (slate locks)" type="datetime-local" />
         <Input name="endDatetime" label="Event End" type="datetime-local" />
       </div>
-      <p className="text-xs text-muted -mt-2">Times are in your local timezone. Slate picks are locked at Event Start.</p>
+      <p className="text-xs text-muted -mt-2">Times are Eastern (ET). Slate picks are locked at Event Start.</p>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
