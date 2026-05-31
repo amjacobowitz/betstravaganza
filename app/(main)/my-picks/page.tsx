@@ -293,6 +293,8 @@ export default async function MyPicksPage() {
                 teamPicked: sp.teamPicked,
                 confidenceRank: sp.confidenceRank,
               }))}
+              slateLockTime={(bz as any).start_datetime ?? null}
+              confidenceMultiplier={Number(bz.confidence_multiplier)}
             />
           </Card>
         </div>

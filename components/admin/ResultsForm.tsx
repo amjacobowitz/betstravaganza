@@ -71,8 +71,8 @@ function EventResultRow({ event }: { event: Event }) {
 
       {event.bet_options.length > 0 && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted">Winner</label>
-          <select name="winnerBetOptionId"
+          <label htmlFor={`winner-${event.id}`} className="text-xs font-medium text-muted">Winner</label>
+          <select id={`winner-${event.id}`} name="winnerBetOptionId"
             defaultValue={r?.winner_bet_option_id ?? ''}
             className="h-10 rounded-lg border border-border bg-surface-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent">
             <option value="">— No winner / Push —</option>

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
 export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
   slateGameId: string
@@ -12,6 +13,16 @@ export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  // Enforce slate lock
+  const { data: bz } = await supabase
+    .from('betstravaganza')
+    .select('start_datetime')
+    .eq('id', betstravaganzaId)
+    .single()
+  if (bz?.start_datetime && new Date() > new Date(bz.start_datetime)) {
+    return { error: 'Slate is locked — picks closed at event start.' }
+  }
+
   // Validate: ranks must be 1..N with no duplicates
   const ranks = picks.map(p => p.confidenceRank).sort((a, b) => a - b)
   const expected = Array.from({ length: picks.length }, (_, i) => i + 1)
@@ -19,7 +30,20 @@ export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
     return { error: 'Confidence ranks must be consecutive integers starting at 1' }
   }
 
-  // Upsert all picks
+  // Delete existing picks using service-role client — no DELETE RLS policy exists for users
+  const serviceClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  const { error: delError } = await serviceClient
+    .from('slate_picks')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('betstravaganza_id', betstravaganzaId)
+
+  if (delError) return { error: delError.message }
+
   const rows = picks.map(p => ({
     betstravaganza_id: betstravaganzaId,
     user_id:           user.id,
@@ -31,7 +55,7 @@ export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
 
   const { error } = await supabase
     .from('slate_picks')
-    .upsert(rows, { onConflict: 'user_id,slate_game_id' })
+    .insert(rows)
 
   if (error) return { error: error.message }
   revalidatePath('/my-picks')

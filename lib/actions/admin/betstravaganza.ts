@@ -11,6 +11,9 @@ export async function createBetstravaganza(formData: FormData) {
   const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
   if (!profile?.is_admin) return { error: 'Not authorized' }
 
+  const startRaw = formData.get('startDatetime') as string | null
+  const endRaw   = formData.get('endDatetime')   as string | null
+
   const { data, error } = await supabase.from('betstravaganza').insert({
     name:                  formData.get('name') as string,
     player_count:          Number(formData.get('playerCount')),
@@ -18,6 +21,8 @@ export async function createBetstravaganza(formData: FormData) {
     stake_amount:          Number(formData.get('stakeAmount') ?? 100),
     starting_bankroll:     Number(formData.get('startingBankroll') ?? 1100),
     confidence_multiplier: Number(formData.get('confidenceMultiplier') ?? 3),
+    start_datetime:        startRaw || null,
+    end_datetime:          endRaw   || null,
   }).select().single()
 
   if (error) return { error: error.message }
@@ -41,6 +46,31 @@ export async function updateDraftOrder(betstravaganzaId: string, userIds: string
   if (error) return { error: error.message }
   revalidatePath('/admin/setup')
   revalidatePath('/admin/draft')
+  return { ok: true }
+}
+
+export async function updateBetstravaganzaDates(betstravaganzaId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const startRaw = formData.get('startDatetime') as string | null
+  const endRaw   = formData.get('endDatetime')   as string | null
+
+  const { error } = await supabase
+    .from('betstravaganza')
+    .update({
+      start_datetime: startRaw || null,
+      end_datetime:   endRaw   || null,
+    })
+    .eq('id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/setup')
+  revalidatePath('/my-picks')
   return { ok: true }
 }
 

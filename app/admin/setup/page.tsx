@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { SetupForm } from '@/components/admin/SetupForm'
 import { DraftOrderManager } from '@/components/admin/DraftOrderManager'
+import { BzDatetimeEditor } from '@/components/admin/BzDatetimeEditor'
 
 const statusColors: Record<string, string> = {
   setup:    'default',
@@ -50,11 +51,30 @@ export default async function SetupPage() {
               <div className="text-white">${Number(bz.stake_amount)}</div>
               <div className="text-muted">Starting Bankroll</div>
               <div className="text-white">${Number(bz.starting_bankroll).toLocaleString()}</div>
-              <div className="text-muted">Slate Multiplier</div>
+              <div className="text-muted">Slate $/Rank</div>
               <div className="text-white">${Number(bz.confidence_multiplier)}/rank</div>
               <div className="text-muted">Current Pick</div>
               <div className="text-white">{bz.current_pick_index + 1} / {bz.player_count * bz.round_count}</div>
+              {(bz as any).start_datetime && (
+                <>
+                  <div className="text-muted">Slate Locks</div>
+                  <div className="text-white">
+                    {new Date((bz as any).start_datetime).toLocaleString('en-US', {
+                      month: 'short', day: 'numeric',
+                      hour: 'numeric', minute: '2-digit', hour12: true,
+                    })}
+                  </div>
+                </>
+              )}
             </div>
+          </Card>
+
+          <Card title="Event Dates">
+            <BzDatetimeEditor
+              bzId={bz.id}
+              startDatetime={(bz as any).start_datetime ?? null}
+              endDatetime={(bz as any).end_datetime ?? null}
+            />
           </Card>
 
           <Card title="Draft Order">

@@ -9,13 +9,49 @@ vi.mock('@/lib/actions/player/slate-picks', () => ({
   submitSlatePicks: mockSubmitSlatePicks,
 }))
 
+// @dnd-kit requires pointer/keyboard events not available in jsdom.
+// Mock the DnD context so tests focus on team selection, validation, and lock logic.
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...actual,
+    DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useSensor: () => ({}),
+    useSensors: () => [],
+  }
+})
+
+vi.mock('@dnd-kit/sortable', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/sortable')>()
+  return {
+    ...actual,
+    SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    useSortable: (args: { id: string }) => ({
+      attributes: {},
+      listeners: {},
+      setNodeRef: vi.fn(),
+      transform: null,
+      transition: undefined,
+      isDragging: false,
+    }),
+  }
+})
+
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 
 const slateGames = [
   { id: 'g1', away_team: 'Yankees', home_team: 'Red Sox', sport_label: 'MLB', start_time_et: '2026-06-06T13:10:00Z', spread: null, notes: null },
   { id: 'g2', away_team: 'Cubs', home_team: 'Cardinals', sport_label: 'MLB', start_time_et: '2026-06-06T14:15:00Z', spread: -1.5, notes: null },
-  { id: 'g3', away_team: 'Dodgers', home_team: 'Giants', sport_label: 'MLB', start_time_et: '2026-06-06T16:10:00Z', spread: null, notes: 'ESPN+' },
+  { id: 'g3', away_team: 'Dodgers', home_team: 'Giants', sport_label: 'MLB', start_time_et: '2026-06-06T16:10:00Z', spread: null, notes: null },
 ]
+
+const defaultProps = {
+  betstravaganzaId: 'bz-1',
+  slateGames,
+  existingPicks: [] as any[],
+  slateLockTime: null,
+  confidenceMultiplier: 3,
+}
 
 describe('SlatePicksForm', () => {
   beforeEach(() => {
@@ -23,9 +59,7 @@ describe('SlatePicksForm', () => {
   })
 
   it('renders all slate games', () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+    render(<SlatePicksForm {...defaultProps} />)
 
     expect(screen.getByText(/Yankees @ Red Sox/)).toBeInTheDocument()
     expect(screen.getByText(/Cubs @ Cardinals/)).toBeInTheDocument()
@@ -33,69 +67,47 @@ describe('SlatePicksForm', () => {
   })
 
   it('shows home and away team buttons for each game', () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+    render(<SlatePicksForm {...defaultProps} />)
 
-    expect(screen.getByRole('button', { name: /Yankees/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Red Sox/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Yankees away/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Red Sox home/i })).toBeInTheDocument()
   })
 
   it('highlights selected team when clicked', () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+    render(<SlatePicksForm {...defaultProps} />)
 
-    const yankeeBtn = screen.getByRole('button', { name: /Yankees/i })
+    const yankeeBtn = screen.getByRole('button', { name: /Yankees away/i })
     fireEvent.click(yankeeBtn)
 
     expect(yankeeBtn).toHaveClass('border-accent')
   })
 
-  it('submit button is disabled when picks are incomplete', () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+  it('submit button is disabled when no teams are picked', () => {
+    render(<SlatePicksForm {...defaultProps} />)
 
     expect(screen.getByRole('button', { name: /submit slate/i })).toBeDisabled()
   })
 
-  it('submit button enables after all games are picked and ranked', async () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+  it('submit button enables after all games have a team picked', async () => {
+    render(<SlatePicksForm {...defaultProps} />)
 
-    // Pick teams and ranks for all 3 games
-    const awayButtons = screen.getAllByText(/away/)
-    const rankSelects = screen.getAllByRole('combobox')
-
-    fireEvent.click(screen.getByRole('button', { name: /Yankees/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Cubs/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Dodgers/i }))
-
-    fireEvent.change(rankSelects[0], { target: { value: '3' } })
-    fireEvent.change(rankSelects[1], { target: { value: '2' } })
-    fireEvent.change(rankSelects[2], { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /submit slate/i })).not.toBeDisabled()
     })
   })
 
-  it('calls submitSlatePicks with correct payload on submit', async () => {
+  it('calls submitSlatePicks with ranks derived from game order', async () => {
     mockSubmitSlatePicks.mockResolvedValue({ ok: true })
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+    render(<SlatePicksForm {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Yankees/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Cubs/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Dodgers/i }))
-
-    const rankSelects = screen.getAllByRole('combobox')
-    fireEvent.change(rankSelects[0], { target: { value: '3' } })
-    fireEvent.change(rankSelects[1], { target: { value: '2' } })
-    fireEvent.change(rankSelects[2], { target: { value: '1' } })
+    // g1 at position 0 → rank 3, g2 → rank 2, g3 → rank 1 (default order)
+    fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /submit slate/i }))
 
@@ -108,35 +120,13 @@ describe('SlatePicksForm', () => {
     })
   })
 
-  it('swaps ranks when a duplicate rank is selected', () => {
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
-
-    const rankSelects = screen.getAllByRole('combobox')
-    fireEvent.change(rankSelects[0], { target: { value: '1' } })
-    // Now assign rank 1 to game 2 — should swap game 1 to 0
-    fireEvent.change(rankSelects[1], { target: { value: '1' } })
-
-    // Game 1 should now have rank 0 (unset) and game 2 has rank 1
-    expect(rankSelects[0]).toHaveValue('')
-    expect(rankSelects[1]).toHaveValue('1')
-  })
-
   it('shows error on submit failure', async () => {
     mockSubmitSlatePicks.mockResolvedValue({ error: 'Server error' })
-    render(
-      <SlatePicksForm betstravaganzaId="bz-1" slateGames={slateGames} existingPicks={[]} />
-    )
+    render(<SlatePicksForm {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Yankees/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Cubs/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Dodgers/i }))
-
-    const rankSelects = screen.getAllByRole('combobox')
-    fireEvent.change(rankSelects[0], { target: { value: '1' } })
-    fireEvent.change(rankSelects[1], { target: { value: '2' } })
-    fireEvent.change(rankSelects[2], { target: { value: '3' } })
+    fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /submit slate/i }))
 
@@ -145,33 +135,28 @@ describe('SlatePicksForm', () => {
     })
   })
 
-  it('pre-fills existing picks', () => {
+  it('pre-fills existing picks and orders by rank descending', () => {
     render(
       <SlatePicksForm
-        betstravaganzaId="bz-1"
-        slateGames={slateGames}
+        {...defaultProps}
         existingPicks={[
           { slateGameId: 'g1', teamPicked: 'home', confidenceRank: 3 },
-          { slateGameId: 'g2', teamPicked: 'away', confidenceRank: 1 },
           { slateGameId: 'g3', teamPicked: 'home', confidenceRank: 2 },
+          { slateGameId: 'g2', teamPicked: 'away', confidenceRank: 1 },
         ]}
       />
     )
 
-    // Red Sox (home) should be highlighted for game 1
-    expect(screen.getByRole('button', { name: /Red Sox/i })).toHaveClass('border-accent')
-
-    // Rank selects should show pre-filled values
-    const rankSelects = screen.getAllByRole('combobox')
-    expect(rankSelects[0]).toHaveValue('3')
-    expect(rankSelects[1]).toHaveValue('1')
+    // Red Sox (home) for g1 should be highlighted
+    expect(screen.getByRole('button', { name: /Red Sox home/i })).toHaveClass('border-accent')
+    // Cubs (away) for g2 should be highlighted
+    expect(screen.getByRole('button', { name: /Cubs away/i })).toHaveClass('border-accent')
   })
 
-  it('shows update button text when picks already submitted', () => {
+  it('shows update button text when all picks already submitted', () => {
     render(
       <SlatePicksForm
-        betstravaganzaId="bz-1"
-        slateGames={slateGames}
+        {...defaultProps}
         existingPicks={[
           { slateGameId: 'g1', teamPicked: 'home', confidenceRank: 3 },
           { slateGameId: 'g2', teamPicked: 'away', confidenceRank: 1 },
@@ -181,5 +166,44 @@ describe('SlatePicksForm', () => {
     )
 
     expect(screen.getByRole('button', { name: /update/i })).toBeInTheDocument()
+  })
+
+  it('shows dollar potential for each game', () => {
+    render(<SlatePicksForm {...defaultProps} confidenceMultiplier={3} />)
+
+    // Rank 3 = $9, rank 2 = $6, rank 1 = $3 with multiplier 3
+    expect(screen.getByText('+$9')).toBeInTheDocument()
+    expect(screen.getByText('+$6')).toBeInTheDocument()
+    expect(screen.getByText('+$3')).toBeInTheDocument()
+  })
+
+  it('shows max potential in header', () => {
+    render(<SlatePicksForm {...defaultProps} confidenceMultiplier={3} />)
+    // 3+2+1 = 6 ranks × $3 = $18 total
+    expect(screen.getByText(/\+\$18/)).toBeInTheDocument()
+  })
+
+  it('shows locked banner when slateLockTime is in the past', () => {
+    const pastTime = new Date(Date.now() - 60_000).toISOString()
+    render(<SlatePicksForm {...defaultProps} slateLockTime={pastTime} />)
+
+    expect(screen.getByText(/slate locked/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /submit slate/i })).not.toBeInTheDocument()
+  })
+
+  it('does not lock when slateLockTime is in the future', () => {
+    const futureTime = new Date(Date.now() + 60_000 * 60).toISOString()
+    render(<SlatePicksForm {...defaultProps} slateLockTime={futureTime} />)
+
+    expect(screen.queryByText(/slate locked/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /submit slate/i })).toBeInTheDocument()
+  })
+
+  it('disables team buttons when locked', () => {
+    const pastTime = new Date(Date.now() - 60_000).toISOString()
+    render(<SlatePicksForm {...defaultProps} slateLockTime={pastTime} />)
+
+    const awayBtn = screen.getByRole('button', { name: /Yankees away/i })
+    expect(awayBtn).toBeDisabled()
   })
 })
