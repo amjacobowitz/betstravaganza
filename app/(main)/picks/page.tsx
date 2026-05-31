@@ -58,7 +58,7 @@ const outcomeBadge: Record<string, string> = {
   win:     'WIN',
   loss:    'LOSS',
   push:    'PUSH',
-  pending: '—',
+  pending: 'PENDING',
 }
 
 export default async function PicksPage({
