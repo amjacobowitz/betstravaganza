@@ -489,11 +489,10 @@ async function run() {
 
   // ── 3. Fetch odds from The Odds API ───────────────────────────────────────
   log('\nFetching odds from The Odds API...')
-  const [mlbGames, nhlGames, wnbaGames, mlsGames] = await Promise.all([
-    fetchOdds('baseball_mlb',          ['h2h', 'spreads']),
-    fetchOdds('icehockey_nhl',         ['h2h']),
-    fetchOdds('basketball_wnba',       ['h2h', 'spreads']),
-    fetchOdds('soccer_usa_mls',        ['h2h']),
+  const [mlbGames, nhlGames, wnbaGames] = await Promise.all([
+    fetchOdds('baseball_mlb',      ['h2h', 'spreads']),
+    fetchOdds('icehockey_nhl',     ['h2h']),
+    fetchOdds('basketball_wnba',   ['h2h', 'spreads']),
   ])
 
   // Separate API call for tennis (French Open)
@@ -544,7 +543,7 @@ async function run() {
     await insert<any>(`  horse: ${horse.label}`,
       admin.from('bet_options').insert({
         event_id: evBelmont.id, label: horse.label, odds: horse.odds,
-        max_drafts: 1, odds_source: 'manual',
+        max_drafts: 2, odds_source: 'manual',
       }).select().single()
     )
   }
@@ -717,7 +716,7 @@ async function run() {
           await insert<any>(`  NHL: ${o.name} Win`,
             admin.from('bet_options').insert({
               event_id: evNHL.id, label: `${o.name} Win`, odds: o.price,
-              max_drafts: 2, odds_source: 'api',
+              max_drafts: 1, odds_source: 'api',
             }).select().single()
           )
         }
@@ -732,7 +731,7 @@ async function run() {
         await insert<any>(`  NHL: ${o.label}`,
           admin.from('bet_options').insert({
             event_id: evNHL.id, label: o.label, odds: o.odds,
-            max_drafts: 2, odds_source: 'manual',
+            max_drafts: 1, odds_source: 'manual',
           }).select().single()
         )
       }
@@ -767,7 +766,7 @@ async function run() {
           await insert<any>(`  FO: ${o.name}`,
             admin.from('bet_options').insert({
               event_id: evFO.id, label: `${o.name} Wins`, odds: o.price,
-              max_drafts: 2, odds_source: 'api',
+              max_drafts: 1, odds_source: 'api',
             }).select().single()
           )
         }
@@ -781,7 +780,7 @@ async function run() {
         await insert<any>(`  FO: ${o.label}`,
           admin.from('bet_options').insert({
             event_id: evFO.id, label: o.label, odds: o.odds,
-            max_drafts: 2, odds_source: 'manual',
+            max_drafts: 1, odds_source: 'manual',
           }).select().single()
         )
       }
@@ -813,7 +812,7 @@ async function run() {
           await insert<any>(`  WNBA: ${o.name}`,
             admin.from('bet_options').insert({
               event_id: evWNBA1.id, label: `${o.name} Win`, odds: o.price,
-              max_drafts: 2, odds_source: 'api',
+              max_drafts: 1, odds_source: 'api',
             }).select().single()
           )
         }
@@ -823,7 +822,7 @@ async function run() {
         await insert<any>(`  WNBA: ${o.label}`,
           admin.from('bet_options').insert({
             event_id: evWNBA1.id, label: o.label, odds: o.odds,
-            max_drafts: 2, odds_source: 'manual',
+            max_drafts: 1, odds_source: 'manual',
           }).select().single()
         )
       }
@@ -855,7 +854,7 @@ async function run() {
           await insert<any>(`  WNBA: ${o.name}`,
             admin.from('bet_options').insert({
               event_id: evWNBA2.id, label: `${o.name} Win`, odds: o.price,
-              max_drafts: 2, odds_source: 'api',
+              max_drafts: 1, odds_source: 'api',
             }).select().single()
           )
         }
@@ -865,7 +864,7 @@ async function run() {
         await insert<any>(`  WNBA: ${o.label}`,
           admin.from('bet_options').insert({
             event_id: evWNBA2.id, label: o.label, odds: o.odds,
-            max_drafts: 2, odds_source: 'manual',
+            max_drafts: 1, odds_source: 'manual',
           }).select().single()
         )
       }
@@ -895,7 +894,7 @@ async function run() {
       await insert<any>(`  Box: ${o.label}`,
         admin.from('bet_options').insert({
           event_id: evBox1.id, label: o.label, odds: o.odds,
-          max_drafts: 2, odds_source: 'manual',
+          max_drafts: 1, odds_source: 'manual',
         }).select().single()
       )
     }
@@ -923,7 +922,7 @@ async function run() {
       await insert<any>(`  Box: ${o.label}`,
         admin.from('bet_options').insert({
           event_id: evBox2.id, label: o.label, odds: o.odds,
-          max_drafts: 2, odds_source: 'manual',
+          max_drafts: 1, odds_source: 'manual',
         }).select().single()
       )
     }
@@ -1007,7 +1006,7 @@ async function run() {
       await insert<any>(`  Cricket: ${o.label}`,
         admin.from('bet_options').insert({
           event_id: evCricket.id, label: o.label, odds: o.odds,
-          max_drafts: 2, odds_source: 'manual',
+          max_drafts: 1, odds_source: 'manual',
         }).select().single()
       )
     }
@@ -1066,49 +1065,7 @@ async function run() {
     for (const [away, home, time] of mlbManual) await addSlate(away, home, 'Baseball', time, null)
   }
 
-  // WNBA — 2 games (spread from API)
-  log('  WNBA games...')
-  if (wnbaGames.length > 0) {
-    for (const g of wnbaGames) await addSlateFromApi(g, 'Basketball (WNBA)')
-  } else {
-    warn('No WNBA games from API — using manual list')
-    await addSlate('Seattle Storm',         'Minnesota Lynx',      'Basketball (WNBA)', `${DATE_ET}T17:00:00Z`, -3.5)
-    await addSlate('Golden State Valkyries','Las Vegas Aces',      'Basketball (WNBA)', `${DATE_ET}T19:00:00Z`, -4.5)
-  }
-
-  // NHL Stanley Cup Final Game 3 as slate game too
-  log('  NHL Stanley Cup Final Gm 3...')
-  const nhlFinalSlate = nhlGames.find(g =>
-    (g.home_team.includes('Golden Knights') || g.home_team.includes('Vegas')) &&
-    (g.away_team.includes('Hurricanes') || g.away_team.includes('Carolina'))
-  )
-  if (nhlFinalSlate) {
-    await addSlateFromApi(nhlFinalSlate, 'Hockey (NHL)')
-  } else {
-    await addSlate('Carolina Hurricanes', 'Vegas Golden Knights', 'Hockey (NHL)',
-      `${DATE_ET}T00:00:00Z`, null, 'Stanley Cup Final Game 3 (Hurricanes lead 2-0)')
-  }
-
-  // AFL Round 13 — June 6 AEST (already in progress by US morning)
-  log('  AFL Round 13 (Australian times)...')
-  // 2:15pm AEST = 04:15am UTC; 5:15pm AEST = 07:15 UTC; 8:15pm AEST = 10:15 UTC
-  await addSlate('Western Bulldogs', 'North Melbourne', 'AFL (Aust. Football)', `${DATE_ET}T04:15:00Z`, null, 'Round 13 — Hands Oval, Bunbury')
-  await addSlate('Gold Coast Suns',  'Fremantle Dockers','AFL (Aust. Football)', `${DATE_ET}T07:15:00Z`, null, 'Round 13 — People First Stadium')
-  await addSlate('West Coast Eagles','Brisbane Lions',   'AFL (Aust. Football)', `${DATE_ET}T10:15:00Z`, null, 'Round 13 — Optus Stadium, Perth')
-
-  // NRL Round — June 6 (Saturday) AEST
-  log('  NRL games...')
-  // ~3pm AEST = 05:00 UTC; ~7:30pm AEST = 09:30 UTC
-  await addSlate('Dolphins',         'North Queensland Cowboys', 'Rugby League (NRL)', `${DATE_ET}T05:00:00Z`, null, 'Kayo Stadium, Brisbane')
-  await addSlate('Brisbane Broncos', 'Gold Coast Titans',        'Rugby League (NRL)', `${DATE_ET}T09:30:00Z`, null, 'Suncorp Stadium, Brisbane')
-
-  // MLS — any games from API
-  log('  MLS games...')
-  if (mlsGames.length > 0) {
-    for (const g of mlsGames) await addSlateFromApi(g, 'Soccer (MLS)')
-  } else {
-    warn('No MLS games found in API for June 6')
-  }
+  // Slate is MLB-only
 
   // ── 13. Summary ───────────────────────────────────────────────────────────
   const totalSlate = Object.values(slateCounts).reduce((a, b) => a + b, 0)
