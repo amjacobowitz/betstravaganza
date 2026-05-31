@@ -89,12 +89,9 @@ describe('ResultsForm', () => {
     expect(screen.getByText(/Yankees @ Red Sox/i)).toBeInTheDocument()
   })
 
-  it('pre-fills existing result values', () => {
+  it('shows existing result_display as read-only text', () => {
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
-
-    // The second event has an existing result_display — find it by its value
-    // (multiple forms reuse the same label, so search by display value instead)
-    expect(screen.getByDisplayValue('Scheffler wins at -4')).toBeInTheDocument()
+    expect(screen.getByText(/Scheffler wins at -4/)).toBeInTheDocument()
   })
 
   it('shows "Complete" status badge for events with existing results', () => {
@@ -105,9 +102,6 @@ describe('ResultsForm', () => {
   it('calls upsertResult on form submission', async () => {
     mockUpsertResult.mockResolvedValue({ ok: true })
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
-
-    const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
-    fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
 
     const saveButtons = screen.getAllByRole('button', { name: /save result/i })
     fireEvent.click(saveButtons[0])
@@ -121,9 +115,6 @@ describe('ResultsForm', () => {
     mockUpsertResult.mockResolvedValue({ ok: true })
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
-    const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
-    fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
-
     const saveButtons = screen.getAllByRole('button', { name: /save result/i })
     fireEvent.click(saveButtons[0])
 
@@ -135,9 +126,6 @@ describe('ResultsForm', () => {
   it('shows error on submission failure', async () => {
     mockUpsertResult.mockResolvedValue({ error: 'DB error' })
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
-
-    const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
-    fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
 
     const saveButtons = screen.getAllByRole('button', { name: /save result/i })
     fireEvent.click(saveButtons[0])

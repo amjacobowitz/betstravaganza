@@ -69,7 +69,7 @@ interface SlateGame {
 
 // ─── Event result row ─────────────────────────────────────────────────────────
 
-function EventResultRow({ event, now }: { event: Event; now: Date }) {
+function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -90,6 +90,7 @@ function EventResultRow({ event, now }: { event: Event; now: Date }) {
   return (
     <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-4 space-y-3">
       <input type="hidden" name="eventId" value={event.id} />
+      <input type="hidden" name="bzId" value={bzId} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <span className="font-semibold text-white text-sm">
@@ -124,9 +125,9 @@ function EventResultRow({ event, now }: { event: Event; now: Date }) {
           defaultValue={r?.away_score ?? ''} placeholder="optional" />
       </div>
 
-      <Input name="resultDisplay" label="Result Display" required
-        defaultValue={r?.result_display ?? ''}
-        placeholder="e.g. Justify wins, 2:03.45" />
+      {r?.result_display && (
+        <p className="text-xs text-muted">Display: {r.result_display}</p>
+      )}
 
       {error && <p className="text-xs text-danger">{error}</p>}
       <Button type="submit" size="sm" loading={loading}>Save Result</Button>
@@ -136,10 +137,11 @@ function EventResultRow({ event, now }: { event: Event; now: Date }) {
 
 // ─── Slate game result row ────────────────────────────────────────────────────
 
-function SlateGameResultRow({ game, now, prefill }: {
+function SlateGameResultRow({ game, now, prefill, bzId }: {
   game: SlateGame
   now: Date
   prefill?: { awayScore: number; homeScore: number; resultDisplay: string }
+  bzId: string
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -161,6 +163,7 @@ function SlateGameResultRow({ game, now, prefill }: {
   return (
     <form onSubmit={submit} className={`rounded-xl border bg-surface p-4 space-y-3 ${prefill ? 'border-accent/40' : 'border-border'}`}>
       <input type="hidden" name="slateGameId" value={game.id} />
+      <input type="hidden" name="bzId" value={bzId} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <span className="font-semibold text-white text-sm">
@@ -182,9 +185,9 @@ function SlateGameResultRow({ game, now, prefill }: {
           defaultValue={prefill?.homeScore ?? r?.home_score ?? ''} required />
       </div>
 
-      <Input name="resultDisplay" label="Result Display"
-        defaultValue={prefill?.resultDisplay ?? r?.result_display ?? ''}
-        placeholder={`${game.away_team} 5, ${game.home_team} 3`} />
+      {r?.result_display && (
+        <p className="text-xs text-muted">Display: {r.result_display}</p>
+      )}
 
       {error && <p className="text-xs text-danger">{error}</p>}
       <Button type="submit" size="sm" loading={loading}>Save Result</Button>
@@ -236,7 +239,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
       fd.set('slateGameId', p.slateGameId)
       fd.set('awayScore', String(p.awayScore))
       fd.set('homeScore', String(p.homeScore))
-      fd.set('resultDisplay', p.resultDisplay)
+      fd.set('bzId', bzId)
       await upsertSlateResult(fd)
     }
     setProposed([])
@@ -320,7 +323,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
                   fd.set('slateGameId', p.slateGameId)
                   fd.set('awayScore', String(p.awayScore))
                   fd.set('homeScore', String(p.homeScore))
-                  fd.set('resultDisplay', p.resultDisplay)
+                  fd.set('bzId', bzId)
                   await upsertSlateResult(fd)
                   dismissGame(p.slateGameId)
                 }}>✓ Confirm</Button>
@@ -371,7 +374,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
       {/* Events list */}
       {typeTab === 'events' && (
         <div className="space-y-3">
-          {filteredEvents.map(e => <EventResultRow key={e.id} event={e} now={now} />)}
+          {filteredEvents.map(e => <EventResultRow key={e.id} event={e} now={now} bzId={bzId} />)}
           {filteredEvents.length === 0 && (
             <p className="text-muted text-sm text-center py-8">
               No {statusFilter !== 'all' ? statusLabel[statusFilter].toLowerCase() + ' ' : ''}events.
@@ -389,6 +392,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
               game={g}
               now={now}
               prefill={proposedById[g.id]}
+              bzId={bzId}
             />
           ))}
           {filteredSlate.length === 0 && (

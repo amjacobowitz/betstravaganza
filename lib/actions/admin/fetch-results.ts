@@ -85,11 +85,11 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
 
       // Skip in-progress games per user request
       const completedApiGames = allApiGames.filter(g => g.completed)
-      const match = matchGame(game.away_team, game.home_team, completedApiGames)
+      const match = matchGame(game.away_team, game.home_team, completedApiGames, game.start_time_et ?? undefined)
 
       if (!match) {
         // Check if it matched but wasn't completed yet
-        const inProgressMatch = matchGame(game.away_team, game.home_team, allApiGames.filter(g => !g.completed))
+        const inProgressMatch = matchGame(game.away_team, game.home_team, allApiGames.filter(g => !g.completed), game.start_time_et ?? undefined)
         notFound.push({
           slateGameId: game.id,
           awayTeam: game.away_team,

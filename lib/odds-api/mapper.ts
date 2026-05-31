@@ -23,16 +23,28 @@ export function matchGame(
   ourAway: string,
   ourHome: string,
   apiGames: OddsApiGame[],
+  referenceTime?: string, // slate game's start_time_et — used to prefer the closest date match
 ): OddsApiGame | null {
   const normAway = normalizeTeam(ourAway)
   const normHome = normalizeTeam(ourHome)
 
-  for (const g of apiGames) {
+  const candidates = apiGames.filter(g => {
     const apiAway = normalizeTeam(g.away_team)
     const apiHome = normalizeTeam(g.home_team)
     const awayMatch = apiAway.includes(normAway) || normAway.includes(apiAway)
     const homeMatch = apiHome.includes(normHome) || normHome.includes(apiHome)
-    if (awayMatch && homeMatch) return g
-  }
-  return null
+    return awayMatch && homeMatch
+  })
+
+  if (candidates.length === 0) return null
+  if (!referenceTime || candidates.length === 1) return candidates[0]
+
+  // Multiple candidates (same teams played multiple times) — pick the one
+  // whose commence_time is closest to the slate game's start_time_et.
+  const ref = new Date(referenceTime).getTime()
+  return candidates.reduce((best, g) => {
+    const bestDiff = Math.abs(new Date(best.commence_time).getTime() - ref)
+    const gDiff    = Math.abs(new Date(g.commence_time).getTime()   - ref)
+    return gDiff < bestDiff ? g : best
+  })
 }
