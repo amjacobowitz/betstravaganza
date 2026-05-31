@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -207,6 +208,7 @@ function SlateGameForm({ bzId, game, onDone }: {
 }
 
 export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGames }: Props) {
+  const router = useRouter()
   const [tab, setTab] = useState<'events' | 'slate'>('events')
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
@@ -281,9 +283,8 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
     }
   }
 
-  // Optimistically reload via router — Next.js revalidatePath triggers a refresh
   function reload() {
-    window.location.reload()
+    router.refresh()
   }
 
   async function handleDeleteEvent(id: string) {
