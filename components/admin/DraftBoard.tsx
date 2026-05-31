@@ -231,7 +231,7 @@ function PickPool({
                         </span>
                         {clashPickers.length > 0 && !isFull && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-clash/30 bg-clash/20 px-2 py-0.5 text-xs font-semibold text-clash">
-                            ⚔️ {clashPickers.join(', ')} on other side
+                            ⚔️ with {clashPickers.join(', ')}
                           </span>
                         )}
                         {isFull && <Badge variant="default">FULL</Badge>}
