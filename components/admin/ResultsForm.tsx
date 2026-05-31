@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -73,17 +73,34 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  const r = event.result
+  const [localResult, setLocalResult] = useState(event.result)
+  const r = localResult
   const status = getStatus(event.start_time_et, !!r, now)
+
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(false), 5000)
+    return () => clearTimeout(t)
+  }, [saved])
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     setSaved(false)
-    const result = await upsertResult(new FormData(e.currentTarget))
-    if (result.error) setError(result.error)
-    else setSaved(true)
+    const fd = new FormData(e.currentTarget)
+    const result = await upsertResult(fd)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setLocalResult({
+        winner_bet_option_id: (fd.get('winnerBetOptionId') as string) || null,
+        home_score: fd.get('homeScore') ? Number(fd.get('homeScore')) : null,
+        away_score: fd.get('awayScore') ? Number(fd.get('awayScore')) : null,
+        result_display: '',
+      })
+      setSaved(true)
+    }
     setLoading(false)
   }
 
@@ -98,11 +115,9 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
           </span>
           <span className="ml-2 text-xs text-muted">{event.sport} · {event.bet_type}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={statusBadge[status]}>{statusLabel[status]}</Badge>
-          {saved && <span className="text-xs text-win">✓ Saved</span>}
-        </div>
+        <Badge variant={statusBadge[status]}>{statusLabel[status]}</Badge>
       </div>
+      {saved && <p className="text-xs text-win">✓ Saved</p>}
 
       {event.bet_options.length > 0 && (
         <div className="flex flex-col gap-1">
@@ -153,14 +168,31 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
   const r = localResult
   const status = getStatus(game.start_time_et, !!r, now)
 
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(false), 5000)
+    return () => clearTimeout(t)
+  }, [saved])
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     setSaved(false)
-    const result = await upsertSlateResult(new FormData(e.currentTarget))
-    if (result.error) setError(result.error)
-    else setSaved(true)
+    const fd = new FormData(e.currentTarget)
+    const result = await upsertSlateResult(fd)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      const awayScore = Number(fd.get('awayScore'))
+      const homeScore = Number(fd.get('homeScore'))
+      setLocalResult({
+        away_score: awayScore,
+        home_score: homeScore,
+        result_display: `${game.away_team} ${awayScore}, ${game.home_team} ${homeScore}`,
+      })
+      setSaved(true)
+    }
     setLoading(false)
   }
 
@@ -178,9 +210,9 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
         <div className="flex items-center gap-2">
           {prefill && <Badge variant="admin">API</Badge>}
           <Badge variant={statusBadge[status]}>{statusLabel[status]}</Badge>
-          {saved && <span className="text-xs text-win">✓ Saved</span>}
         </div>
       </div>
+      {saved && <p className="text-xs text-win">✓ Saved</p>}
 
       <div className="grid grid-cols-2 gap-3">
         <Input name="awayScore" label={`${game.away_team} Score`} type="number" step="0.1"
@@ -270,7 +302,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
 
   async function handleConfirmAll() {
     setConfirmAllLoading(true)
-    const toConfirm = proposed.filter(p => !skipped.has(p.slateGameId))
+    const toConfirm = proposed.filter(p => p.isCompleted && !skipped.has(p.slateGameId))
     for (const p of toConfirm) {
       const fd = new FormData()
       fd.set('slateGameId', p.slateGameId)
@@ -331,14 +363,20 @@ export function ResultsForm({ events, slateGames, bzId }: {
         <Card className="space-y-3 border-accent/30">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">
-              API Results — {proposed.length} new result{proposed.length !== 1 ? 's' : ''} found
-              {notFound.length > 0 && `, ${notFound.length} game${notFound.length !== 1 ? 's' : ''} not found`}
-              {proposed.length === 0 && notFound.length === 0 && ' — all games already saved or none completed yet'}
+              {(() => {
+                const completed = proposed.filter(p => p.isCompleted).length
+                const live = proposed.filter(p => !p.isCompleted).length
+                const parts: string[] = []
+                if (completed > 0) parts.push(`${completed} completed`)
+                if (live > 0) parts.push(`${live} live/in-progress`)
+                if (notFound.length > 0) parts.push(`${notFound.length} not found`)
+                return `API Results — ${parts.length ? parts.join(', ') : 'all games already saved or none completed yet'}`
+              })()}
             </h3>
             <div className="flex gap-2">
-              {proposed.length > 0 && (
+              {proposed.filter(p => p.isCompleted).length > 0 && (
                 <Button size="sm" loading={confirmAllLoading} onClick={handleConfirmAll}>
-                  Confirm All ({proposed.length})
+                  Confirm All ({proposed.filter(p => p.isCompleted).length})
                 </Button>
               )}
               <Button size="sm" variant="ghost" onClick={() => { setProposed([]); setNotFound([]); setFetchDone(false) }}>
@@ -349,15 +387,22 @@ export function ResultsForm({ events, slateGames, bzId }: {
 
           {/* Proposed results */}
           {proposed.map(p => (
-            <div key={p.slateGameId} className="flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2.5">
+            <div key={p.slateGameId} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${p.isCompleted ? 'border-accent/30 bg-accent/5' : 'border-pending/40 bg-pending/5'}`}>
               <div className="flex-1">
-                <div className="text-sm font-semibold text-white">
-                  {p.awayTeam} {p.awayScore} · {p.homeTeam} {p.homeScore}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white">
+                    {p.awayTeam} {p.awayScore} · {p.homeTeam} {p.homeScore}
+                  </span>
+                  {!p.isCompleted && (
+                    <Badge variant="pending">Live — game in progress</Badge>
+                  )}
                 </div>
-                <div className="text-xs text-muted mt-0.5">{p.resultDisplay}</div>
+                {!p.isCompleted && (
+                  <div className="text-xs text-pending mt-0.5">Scores may change. Use Override to save current scores.</div>
+                )}
               </div>
               <div className="flex gap-1.5 shrink-0">
-                <Button size="sm" onClick={async () => {
+                <Button size="sm" variant={p.isCompleted ? 'primary' : 'secondary'} onClick={async () => {
                   const fd = new FormData()
                   fd.set('slateGameId', p.slateGameId)
                   fd.set('awayScore', String(p.awayScore))
@@ -365,7 +410,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
                   fd.set('bzId', bzId)
                   await upsertSlateResult(fd)
                   dismissGame(p.slateGameId)
-                }}>✓ Confirm</Button>
+                }}>{p.isCompleted ? '✓ Confirm' : '⚠ Override'}</Button>
                 <Button size="sm" variant="ghost" onClick={() => skipGame(p.slateGameId)}>Skip</Button>
               </div>
             </div>

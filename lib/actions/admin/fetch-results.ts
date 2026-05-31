@@ -12,6 +12,7 @@ export interface ProposedSlateResult {
   awayScore: number
   homeScore: number
   resultDisplay: string
+  isCompleted: boolean
 }
 
 export interface NotFoundSlateGame {
@@ -87,34 +88,53 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
       const completedApiGames = allApiGames.filter(g => g.completed)
       const match = matchGame(game.away_team, game.home_team, completedApiGames, game.start_time_et ?? undefined)
 
+      const extractScores = (apiGame: OddsApiGame) => {
+        if (!apiGame.scores) return null
+        const awayScore = Number(apiGame.scores.find(s => normalizeTeam(s.name).includes(normalizeTeam(game.away_team)) || normalizeTeam(game.away_team).includes(normalizeTeam(s.name)))?.score ?? 0)
+        const homeScore = Number(apiGame.scores.find(s => normalizeTeam(s.name).includes(normalizeTeam(game.home_team)) || normalizeTeam(game.home_team).includes(normalizeTeam(s.name)))?.score ?? 0)
+        return { awayScore, homeScore }
+      }
+
       if (!match) {
-        // Check if it matched but wasn't completed yet
+        // Try in-progress games — if they have live scores, surface them as overrideable proposals
         const inProgressMatch = matchGame(game.away_team, game.home_team, allApiGames.filter(g => !g.completed), game.start_time_et ?? undefined)
-        notFound.push({
-          slateGameId: game.id,
-          awayTeam: game.away_team,
-          homeTeam: game.home_team,
-          sportLabel: game.sport_label,
-          reason: inProgressMatch ? 'not_completed' : 'no_match',
-        })
+        const liveScores = inProgressMatch ? extractScores(inProgressMatch) : null
+        if (liveScores) {
+          proposed.push({
+            slateGameId: game.id,
+            awayTeam: game.away_team,
+            homeTeam: game.home_team,
+            awayScore: liveScores.awayScore,
+            homeScore: liveScores.homeScore,
+            resultDisplay: `${game.away_team} ${liveScores.awayScore}, ${game.home_team} ${liveScores.homeScore}`,
+            isCompleted: false,
+          })
+        } else {
+          notFound.push({
+            slateGameId: game.id,
+            awayTeam: game.away_team,
+            homeTeam: game.home_team,
+            sportLabel: game.sport_label,
+            reason: inProgressMatch ? 'not_completed' : 'no_match',
+          })
+        }
         continue
       }
 
-      if (!match.scores) {
+      const scores = extractScores(match)
+      if (!scores) {
         notFound.push({ slateGameId: game.id, awayTeam: game.away_team, homeTeam: game.home_team, sportLabel: game.sport_label, reason: 'not_completed' })
         continue
       }
-
-      const awayScore = Number(match.scores.find(s => normalizeTeam(s.name).includes(normalizeTeam(game.away_team)) || normalizeTeam(game.away_team).includes(normalizeTeam(s.name)))?.score ?? 0)
-      const homeScore = Number(match.scores.find(s => normalizeTeam(s.name).includes(normalizeTeam(game.home_team)) || normalizeTeam(game.home_team).includes(normalizeTeam(s.name)))?.score ?? 0)
 
       proposed.push({
         slateGameId: game.id,
         awayTeam: game.away_team,
         homeTeam: game.home_team,
-        awayScore,
-        homeScore,
-        resultDisplay: `${game.away_team} ${awayScore}, ${game.home_team} ${homeScore}`,
+        awayScore: scores.awayScore,
+        homeScore: scores.homeScore,
+        resultDisplay: `${game.away_team} ${scores.awayScore}, ${game.home_team} ${scores.homeScore}`,
+        isCompleted: true,
       })
     }
 
