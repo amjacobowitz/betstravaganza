@@ -64,7 +64,7 @@ function PickPool({
   selectedUserId: string
   selectedOptionId: string
   onSelectOption: (id: string) => void
-  filter: 'all' | 'required' | 'optional'
+  filter: 'all' | 'required' | 'optional' | 'clashable'
   search: string
   hideFull: boolean
 }) {
@@ -98,6 +98,7 @@ function PickPool({
     const filtered = optionRows.filter(r => {
       if (filter === 'required' && r.event.category !== 'required') return false
       if (filter === 'optional' && r.event.category !== 'optional') return false
+      if (filter === 'clashable' && r.clashPickers.length === 0) return false
       if (hideFull && r.isFull) return false
       if (search) {
         const q = search.toLowerCase()
@@ -499,17 +500,11 @@ function PlayerRoster({
     return { ev, fullEv, pick }
   })
 
-  const optionalPicks = playerPicks.filter(p => {
-    const ev = scoringEvents.find(e => e.id === p.eventId)
-    return ev?.category !== 'required'
-  })
+  const optionalPicks = playerPicks
+    .filter(p => scoringEvents.find(e => e.id === p.eventId)?.category !== 'required')
+    .sort((a, b) => a.roundNumber - b.roundNumber)
 
-  const optionalRounds = Array.from({ length: roundCount }, (_, i) => i + 1).filter(r => {
-    // Show round if: player has an optional pick in this round, OR this is a "free" round
-    // (not used by a required pick)
-    return !requiredPicks.some(rp => rp.pick?.roundNumber === r)
-  })
-
+  const totalOptionalSlots = roundCount - requiredEventIds.length
   const coveredRequired = requiredPicks.filter(r => r.pick).length
 
   return (
@@ -536,27 +531,23 @@ function PlayerRoster({
         </div>
       </div>
 
-      {/* Optional picks by round */}
+      {/* Optional picks — show all slots including empty */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">Optional Picks</h3>
-          <span className="text-xs font-mono text-muted">{optionalPicks.length} picks</span>
+          <span className="text-xs font-mono text-muted">{optionalPicks.length} / {totalOptionalSlots}</span>
         </div>
         <div className="space-y-1.5">
-          {playerPicks
-            .filter(p => scoringEvents.find(e => e.id === p.eventId)?.category !== 'required')
-            .map(pick => {
-              const ev = scoringEvents.find(e => e.id === pick.eventId)
-              const fullEv = events.find(e => e.id === pick.eventId)
-              return (
-                <div key={pick.id}>
-                  {renderPickRow(pick, `Round ${pick.roundNumber}`, ev?.name ?? '?', fullEv?.sport ?? '', 'optional')}
-                </div>
-              )
-            })}
-          {optionalPicks.length === 0 && (
-            <p className="text-xs text-muted italic px-1">No optional picks yet.</p>
-          )}
+          {Array.from({ length: totalOptionalSlots }, (_, i) => {
+            const pick = optionalPicks[i] ?? null
+            const ev = pick ? scoringEvents.find(e => e.id === pick.eventId) : null
+            const fullEv = pick ? events.find(e => e.id === pick.eventId) : null
+            return (
+              <div key={i}>
+                {renderPickRow(pick, pick ? `Round ${pick.roundNumber}` : `Slot ${i + 1}`, ev?.name ?? '', fullEv?.sport ?? '', 'optional')}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
@@ -586,7 +577,7 @@ export function DraftBoard({
   useEffect(() => {
     if (currentUserId) setSelectedUserId(currentUserId)
   }, [currentUserId])
-  const [filter, setFilter] = useState<'all' | 'required' | 'optional'>('all')
+  const [filter, setFilter] = useState<'all' | 'required' | 'optional' | 'clashable'>('all')
   const [search, setSearch] = useState('')
   const [hideFull, setHideFull] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
@@ -766,14 +757,16 @@ export function DraftBoard({
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {(['all', 'required', 'optional'] as const).map(f => (
+              {(['all', 'required', 'optional', 'clashable'] as const).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`rounded-lg px-3 py-1 text-xs font-medium capitalize transition-colors
-                    ${filter === f ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}
+                    ${filter === f
+                      ? f === 'clashable' ? 'bg-clash text-black' : 'bg-accent text-black'
+                      : 'bg-surface-2 text-muted hover:text-white'}`}
                 >
-                  {f}
+                  {f === 'clashable' ? '⚔️ Clashable' : f}
                 </button>
               ))}
               <input
