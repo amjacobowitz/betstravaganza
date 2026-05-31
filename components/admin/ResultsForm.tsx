@@ -122,7 +122,7 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
         winner_bet_option_ids: ids,
         home_score: fd.get('homeScore') ? Number(fd.get('homeScore')) : null,
         away_score: fd.get('awayScore') ? Number(fd.get('awayScore')) : null,
-        result_display: '',
+        result_display: ids.length === 0 ? 'Push' : '',
       })
       setSaved(true)
     }

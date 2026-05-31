@@ -24,7 +24,7 @@ export function TeamSelector({ users, currentUserId, selectedUserId }: Props) {
         .filter(u => u.id !== currentUserId)
         .map(u => (
           <option key={u.id} value={u.id}>
-            {u.team_name || u.name}
+            {u.team_name ? `${u.team_name} (${u.name})` : u.name}
           </option>
         ))}
     </select>

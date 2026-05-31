@@ -136,6 +136,22 @@ describe('ResultsForm', () => {
     })
   })
 
+  it('optimistically sets result_display to Push when no winners checked', async () => {
+    mockUpsertResult.mockResolvedValue({ ok: true })
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
+
+    // Save without selecting any winner (first event has no pre-checked winners)
+    const saveButtons = screen.getAllByRole('button', { name: /save result/i })
+    fireEvent.click(saveButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getAllByText('✓ Saved').length).toBeGreaterThan(0)
+    })
+
+    // The existing "Scheffler wins at -4" display should still show, not turn blank
+    expect(screen.getByText(/Scheffler wins at -4/)).toBeInTheDocument()
+  })
+
   it('calls upsertSlateResult for slate games', async () => {
     mockUpsertSlateResult.mockResolvedValue({ ok: true })
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)

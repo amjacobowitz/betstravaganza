@@ -26,9 +26,14 @@ describe('TeamSelector', () => {
     render(<TeamSelector users={users} currentUserId="u1" selectedUserId={null} />)
 
     // u1 (currentUser) should be excluded
-    expect(screen.queryByText('Team A')).not.toBeInTheDocument()
-    expect(screen.getByText('Team B')).toBeInTheDocument()
-    expect(screen.getByText('Team C')).toBeInTheDocument()
+    expect(screen.queryByText(/Team A/)).not.toBeInTheDocument()
+    expect(screen.getByText('Team B (Bob)')).toBeInTheDocument()
+    expect(screen.getByText('Team C (Carol)')).toBeInTheDocument()
+  })
+
+  it('shows player name alongside team name in option', () => {
+    render(<TeamSelector users={users} currentUserId="u1" selectedUserId={null} />)
+    expect(screen.getByText('Team B (Bob)')).toBeInTheDocument()
   })
 
   it('shows "— Select a team —" as default option', () => {

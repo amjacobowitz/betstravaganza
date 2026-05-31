@@ -248,12 +248,19 @@ export default async function PicksPage({
             const displayUser = isOwnPicks
               ? allUsers.find(u => u.id === currentUser.id)
               : viewUser
-            const displayName = displayUser?.team_name ?? displayUser?.name ?? 'Unknown'
-            const suffix = isOwnPicks ? '' : "'s Picks"
+            const teamName = displayUser?.team_name ?? displayUser?.name ?? 'Unknown'
+            const playerName = displayUser?.name
             return (
               <div className="flex items-center gap-3">
                 <BirdAvatar teamName={displayUser?.team_name} size={48} />
-                <h2 className="text-xl font-bold text-white">{displayName}{suffix}</h2>
+                <div>
+                  <h2 className="text-xl font-bold text-white leading-tight">
+                    {teamName}{!isOwnPicks ? "'s Picks" : ''}
+                  </h2>
+                  {playerName && teamName !== playerName && (
+                    <p className="text-sm text-muted">{playerName}</p>
+                  )}
+                </div>
               </div>
             )
           })()}

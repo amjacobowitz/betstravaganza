@@ -60,5 +60,7 @@ export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
   if (error) return { error: error.message }
   revalidatePath('/my-picks')
   revalidatePath('/admin/slate')
+  revalidatePath('/leaderboard')
+  revalidatePath('/picks')
   return { ok: true }
 }
