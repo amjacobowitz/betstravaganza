@@ -154,6 +154,7 @@ export default async function PicksPage({
     id: r.id,
     eventId: r.event_id,
     winnerBetOptionId: r.winner_bet_option_id ?? null,
+    winnerBetOptionIds: r.winner_bet_option_ids ?? [],
     homeScore: r.home_score ? Number(r.home_score) : null,
     awayScore: r.away_score ? Number(r.away_score) : null,
     resultDisplay: r.result_display ?? '',

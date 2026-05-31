@@ -34,6 +34,7 @@ describe('computeOutcome', () => {
         id: 'r1',
         eventId: 'event-1',
         winnerBetOptionId: 'opt-winner',
+        winnerBetOptionIds: ['opt-winner'],
         homeScore: null,
         awayScore: null,
         resultDisplay: 'Horse A wins',
@@ -46,11 +47,27 @@ describe('computeOutcome', () => {
         id: 'r1',
         eventId: 'event-1',
         winnerBetOptionId: 'opt-winner',
+        winnerBetOptionIds: ['opt-winner'],
         homeScore: null,
         awayScore: null,
         resultDisplay: 'Horse A wins',
       }
       expect(computeOutcome('opt-loser', result, makeEvent('event-1'))).toBe('loss')
+    })
+
+    it('returns win for multiple winners when pick is among them', () => {
+      const result: EventResult = {
+        id: 'r1',
+        eventId: 'event-1',
+        winnerBetOptionId: 'opt-a',
+        winnerBetOptionIds: ['opt-a', 'opt-b'],
+        homeScore: null,
+        awayScore: null,
+        resultDisplay: 'Player A, Player B scored',
+      }
+      expect(computeOutcome('opt-a', result, makeEvent('event-1'))).toBe('win')
+      expect(computeOutcome('opt-b', result, makeEvent('event-1'))).toBe('win')
+      expect(computeOutcome('opt-c', result, makeEvent('event-1'))).toBe('loss')
     })
   })
 
@@ -65,6 +82,7 @@ describe('computeOutcome', () => {
         id: 'r1',
         eventId: 'event-spread',
         winnerBetOptionId: 'opt-home',
+        winnerBetOptionIds: ['opt-home'],
         homeScore: null,
         awayScore: null,
         resultDisplay: 'Home covers',
@@ -78,6 +96,7 @@ describe('computeOutcome', () => {
         id: 'r1',
         eventId: 'event-spread',
         winnerBetOptionId: null,
+        winnerBetOptionIds: [],
         homeScore: null,
         awayScore: null,
         resultDisplay: 'Push',
@@ -126,6 +145,7 @@ describe('computePlayerBankroll', () => {
       id: 'r1',
       eventId: 'e-1',
       winnerBetOptionId: 'opt-winner',
+      winnerBetOptionIds: ['opt-winner'],
       homeScore: null,
       awayScore: null,
       resultDisplay: 'Winner',
@@ -152,6 +172,7 @@ describe('computePlayerBankroll', () => {
       id: 'r1',
       eventId: 'e-1',
       winnerBetOptionId: 'opt-other',
+      winnerBetOptionIds: ['opt-other'],
       homeScore: null,
       awayScore: null,
       resultDisplay: 'Other wins',
@@ -177,6 +198,7 @@ describe('computePlayerBankroll', () => {
       id: 'r1',
       eventId: 'e-1',
       winnerBetOptionId: null,
+      winnerBetOptionIds: [],
       homeScore: null,
       awayScore: null,
       resultDisplay: 'Push',
@@ -211,9 +233,9 @@ describe('computePlayerBankroll', () => {
       makeEvent('e-1'), makeEvent('e-2'), makeEvent('e-3', 'spread'), makeEvent('e-4'),
     ]
     const results: EventResult[] = [
-      { id: 'r1', eventId: 'e-1', winnerBetOptionId: 'opt-win',   homeScore: null, awayScore: null, resultDisplay: '' },
-      { id: 'r2', eventId: 'e-2', winnerBetOptionId: 'opt-other', homeScore: null, awayScore: null, resultDisplay: '' },
-      { id: 'r3', eventId: 'e-3', winnerBetOptionId: null,        homeScore: null, awayScore: null, resultDisplay: 'Push' },
+      { id: 'r1', eventId: 'e-1', winnerBetOptionId: 'opt-win',   winnerBetOptionIds: ['opt-win'],   homeScore: null, awayScore: null, resultDisplay: '' },
+      { id: 'r2', eventId: 'e-2', winnerBetOptionId: 'opt-other', winnerBetOptionIds: ['opt-other'], homeScore: null, awayScore: null, resultDisplay: '' },
+      { id: 'r3', eventId: 'e-3', winnerBetOptionId: null,        winnerBetOptionIds: [],            homeScore: null, awayScore: null, resultDisplay: 'Push' },
     ]
 
     const bankroll = computePlayerBankroll({

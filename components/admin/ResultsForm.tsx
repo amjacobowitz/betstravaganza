@@ -48,6 +48,7 @@ interface Event {
   bet_options: BetOption[]
   result?: {
     winner_bet_option_id: string | null
+    winner_bet_option_ids?: string[] | null
     home_score: number | null
     away_score: number | null
     result_display: string
@@ -77,11 +78,30 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
   const r = localResult
   const status = getStatus(event.start_time_et, !!r, now)
 
+  // Pre-populate checked winners from saved result
+  const initialWinners = new Set<string>(
+    r?.winner_bet_option_ids?.length
+      ? r.winner_bet_option_ids
+      : r?.winner_bet_option_id
+        ? [r.winner_bet_option_id]
+        : []
+  )
+  const [checkedWinners, setCheckedWinners] = useState<Set<string>>(initialWinners)
+
   useEffect(() => {
     if (!saved) return
     const t = setTimeout(() => setSaved(false), 5000)
     return () => clearTimeout(t)
   }, [saved])
+
+  function toggleWinner(id: string) {
+    setCheckedWinners(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -89,12 +109,17 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
     setError(null)
     setSaved(false)
     const fd = new FormData(e.currentTarget)
+    // Inject checked winners since checkboxes only submit when checked
+    fd.delete('winnerBetOptionId')
+    checkedWinners.forEach(id => fd.append('winnerBetOptionId', id))
     const result = await upsertResult(fd)
     if (result.error) {
       setError(result.error)
     } else {
+      const ids = Array.from(checkedWinners)
       setLocalResult({
-        winner_bet_option_id: (fd.get('winnerBetOptionId') as string) || null,
+        winner_bet_option_id: ids[0] ?? null,
+        winner_bet_option_ids: ids,
         home_score: fd.get('homeScore') ? Number(fd.get('homeScore')) : null,
         away_score: fd.get('awayScore') ? Number(fd.get('awayScore')) : null,
         result_display: '',
@@ -103,6 +128,8 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
     }
     setLoading(false)
   }
+
+  const isSpreadType = event.bet_type === 'spread'
 
   return (
     <form onSubmit={submit} className="rounded-xl border border-border bg-surface p-4 space-y-3">
@@ -120,25 +147,45 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
       {saved && <p className="text-xs text-win">✓ Saved</p>}
 
       {event.bet_options.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`winner-${event.id}`} className="text-xs font-medium text-muted">Winner</label>
-          <select id={`winner-${event.id}`} name="winnerBetOptionId"
-            defaultValue={r?.winner_bet_option_id ?? ''}
-            className="h-10 rounded-lg border border-border bg-surface-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent">
-            <option value="">— No winner / Push —</option>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs font-medium text-muted">Winner(s) — check all that apply</p>
+          <div className="rounded-lg border border-border/50 bg-surface-2/40 p-2 max-h-48 overflow-y-auto space-y-1">
             {event.bet_options.map(o => (
-              <option key={o.id} value={o.id}>{o.label}</option>
+              <label
+                key={o.id}
+                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
+                  checkedWinners.has(o.id) ? 'bg-accent/15 border border-accent/30' : 'hover:bg-surface-2'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checkedWinners.has(o.id)}
+                  onChange={() => toggleWinner(o.id)}
+                  className="accent-accent w-3.5 h-3.5 shrink-0"
+                />
+                <span className="text-sm text-white">{o.label}</span>
+                {o.odds != null && (
+                  <span className={`ml-auto text-xs font-mono shrink-0 ${o.odds > 0 ? 'text-win' : 'text-loss'}`}>
+                    {o.odds > 0 ? `+${o.odds}` : o.odds}
+                  </span>
+                )}
+              </label>
             ))}
-          </select>
+          </div>
+          {checkedWinners.size === 0 && (
+            <p className="text-xs text-muted/50 italic">No winner selected — will record as Push</p>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
-        <Input name="homeScore" label="Home Score" type="number" step="0.1"
-          defaultValue={r?.home_score ?? ''} placeholder="optional" />
-        <Input name="awayScore" label="Away Score" type="number" step="0.1"
-          defaultValue={r?.away_score ?? ''} placeholder="optional" />
-      </div>
+      {isSpreadType && (
+        <div className="grid grid-cols-2 gap-3">
+          <Input name="homeScore" label="Home Score" type="number" step="0.1"
+            defaultValue={r?.home_score ?? ''} placeholder="optional" />
+          <Input name="awayScore" label="Away Score" type="number" step="0.1"
+            defaultValue={r?.away_score ?? ''} placeholder="optional" />
+        </div>
+      )}
 
       {r?.result_display && (
         <p className="text-xs text-muted">Display: {r.result_display}</p>

@@ -50,7 +50,7 @@ export default async function SchedulePage() {
     supabase.from('bet_options').select('*'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id),
     // 'results' table has event_id FK to events; events have betstravaganza_id
-    supabase.from('results').select('event_id, winner_bet_option_id, home_score, away_score, result_display').in('event_id', (await getEventsWithOptions(bz.id)).map((e: any) => e.id)),
+    supabase.from('results').select('event_id, winner_bet_option_id, winner_bet_option_ids, home_score, away_score, result_display').in('event_id', (await getEventsWithOptions(bz.id)).map((e: any) => e.id)),
     supabase.from('slate_results').select('slate_game_id, home_score, away_score, result_display').eq('betstravaganza_id', bz.id),
   ])
 

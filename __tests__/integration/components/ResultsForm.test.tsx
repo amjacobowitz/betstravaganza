@@ -43,6 +43,7 @@ const events = [
     ],
     result: {
       winner_bet_option_id: 'o3',
+      winner_bet_option_ids: ['o3'],
       home_score: null,
       away_score: null,
       result_display: 'Scheffler wins at -4',

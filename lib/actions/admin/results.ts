@@ -15,27 +15,28 @@ async function requireAdmin() {
 export async function upsertResult(formData: FormData) {
   try {
     const { supabase, userId } = await requireAdmin()
-    const eventId            = formData.get('eventId') as string
-    const bzId               = formData.get('bzId') as string
-    const winnerBetOptionId  = (formData.get('winnerBetOptionId') as string) || null
-    const homeScore          = formData.get('homeScore') ? Number(formData.get('homeScore')) : null
-    const awayScore          = formData.get('awayScore') ? Number(formData.get('awayScore')) : null
+    const eventId              = formData.get('eventId') as string
+    const bzId                 = formData.get('bzId') as string
+    const winnerBetOptionIds   = (formData.getAll('winnerBetOptionId') as string[]).filter(Boolean)
+    const homeScore            = formData.get('homeScore') ? Number(formData.get('homeScore')) : null
+    const awayScore            = formData.get('awayScore') ? Number(formData.get('awayScore')) : null
 
-    // Generate result_display from winner label (no manual entry needed)
+    // Generate result_display from winner labels
     let resultDisplay = 'Push'
-    if (winnerBetOptionId) {
-      const { data: opt } = await supabase
-        .from('bet_options').select('label').eq('id', winnerBetOptionId).single()
-      if (opt?.label) resultDisplay = opt.label
+    if (winnerBetOptionIds.length > 0) {
+      const { data: opts } = await supabase
+        .from('bet_options').select('label').in('id', winnerBetOptionIds)
+      if (opts && opts.length > 0) resultDisplay = opts.map(o => o.label).join(', ')
     }
 
     const payload = {
-      event_id:             eventId,
-      winner_bet_option_id: winnerBetOptionId,
-      home_score:           homeScore,
-      away_score:           awayScore,
-      result_display:       resultDisplay,
-      entered_by:           userId,
+      event_id:               eventId,
+      winner_bet_option_id:   winnerBetOptionIds[0] ?? null,
+      winner_bet_option_ids:  winnerBetOptionIds,
+      home_score:             homeScore,
+      away_score:             awayScore,
+      result_display:         resultDisplay,
+      entered_by:             userId,
     }
 
     const { error } = await supabase

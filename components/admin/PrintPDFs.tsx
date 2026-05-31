@@ -88,13 +88,13 @@ function printDraftSheet(bzName: string, events: Event[], draftPicks: DraftPick[
     sortByOdds(e.bet_options).map(o => {
       const drafted = isDrafted(o.id)
       const by = pickedBy(o.id)
-      const maxNote = (o.max_drafts ?? 1) > 1 ? `max ${o.max_drafts}` : ''
+      const notesVal = e.sport === 'Horse Racing' && (o.max_drafts ?? 1) > 1 ? `max ${o.max_drafts}` : ''
       return `<tr style="${drafted ? 'background:#f0fdf4' : ''}">
   <td style="text-align:center;width:24px"><input type="checkbox" ${drafted ? 'checked' : ''}></td>
   <td>${o.label}</td>
   <td class="odds">${formatOdds(o.odds)}</td>
-  <td style="color:#555;font-size:10px">${by}</td>
-  <td style="color:#999;font-size:10px">${maxNote}</td>
+  <td style="color:#555;font-size:10px;padding-right:12px">${by}</td>
+  <td style="color:#999;font-size:10px">${notesVal}</td>
 </tr>`
     }).join('')
 
@@ -112,9 +112,9 @@ function printDraftSheet(bzName: string, events: Event[], draftPicks: DraftPick[
   table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
   col.col-check { width: 26px; }
   col.col-pick   { width: auto; }
-  col.col-odds   { width: 52px; }
-  col.col-by     { width: 120px; }
-  col.col-max    { width: 46px; }
+  col.col-odds   { width: 48px; }
+  col.col-by     { width: 160px; }
+  col.col-notes  { width: 50px; }
   th { text-align: left; font-size: 9px; text-transform: uppercase; color: #888;
        border-bottom: 1px solid #ccc; padding: 2px 4px; }
   th.center { text-align: center; }
@@ -133,13 +133,13 @@ function printDraftSheet(bzName: string, events: Event[], draftPicks: DraftPick[
 ${required.map(e => `
 <h3>${e.name} <span style="font-weight:normal;color:#777">· ${e.sport}</span></h3>
 <table>
-<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-by"><col class="col-max"></colgroup>
+<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-by"><col class="col-notes"></colgroup>
 <thead><tr>
   <th class="center">✓</th>
   <th>Pick</th>
   <th>Odds</th>
   <th>Drafted By</th>
-  <th>Max</th>
+  <th>Notes</th>
 </tr></thead>
 <tbody>${eventRows(e)}</tbody>
 </table>`).join('')}
@@ -150,13 +150,13 @@ ${required.map(e => `
 ${optional.map(e => `
 <h3>${e.name} <span style="font-weight:normal;color:#777">· ${e.sport} · ${e.bet_type.replace('_',' ')}</span></h3>
 <table>
-<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-by"><col class="col-max"></colgroup>
+<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-by"><col class="col-notes"></colgroup>
 <thead><tr>
   <th class="center">✓</th>
   <th>Pick</th>
   <th>Odds</th>
   <th>Drafted By</th>
-  <th>Max</th>
+  <th>Notes</th>
 </tr></thead>
 <tbody>${eventRows(e)}</tbody>
 </table>`).join('')}

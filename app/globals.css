@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --bg:         #09090b;
-  --surface:    #18181b;
-  --surface-2:  #27272a;
-  --border:     #3f3f46;
-  --accent:     #10b981;
-  --accent-2:   #f59e0b;
-  --danger:     #ef4444;
-  --text:       #fafafa;
-  --text-muted: #a1a1aa;
-  --win:        #22c55e;
-  --loss:       #ef4444;
-  --push:       #a1a1aa;
+  --bg:         #0b0e13;
+  --surface:    #1a1f2b;
+  --surface-2:  #242c3a;
+  --border:     #2e3a4e;
+  --accent:     #53d337;
+  --accent-2:   #f5c518;
+  --danger:     #ff4d4d;
+  --text:       #f0f4ff;
+  --text-muted: #8b95a7;
+  --win:        #53d337;
+  --loss:       #ff4d4d;
+  --push:       #8b95a7;
   --clash:      #f97316;
 }
 
@@ -29,8 +29,8 @@
   --color-loss:      var(--loss);
   --color-push:      var(--push);
   --color-clash:     var(--clash);
-  --font-sans:       var(--font-geist-sans);
-  --font-mono:       var(--font-geist-mono);
+  --font-sans:       var(--font-inter);
+  --font-mono:       ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }
 
 * {

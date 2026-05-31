@@ -16,11 +16,15 @@ export function computeOutcome(
 ): Outcome {
   if (!result) return 'pending'
 
-  // Push: resultDisplay contains "push" (case-insensitive) and no winner
+  // Use array if populated (new records and backfilled legacy records)
+  if (result.winnerBetOptionIds.length > 0) {
+    return result.winnerBetOptionIds.includes(betOptionId) ? 'win' : 'loss'
+  }
+
+  // Legacy: fall back to single winner field
   if (!result.winnerBetOptionId && result.resultDisplay.toLowerCase().includes('push')) {
     return 'push'
   }
-
   if (result.winnerBetOptionId === betOptionId) return 'win'
   if (result.winnerBetOptionId !== null) return 'loss'
 

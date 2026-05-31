@@ -31,6 +31,7 @@ export interface EventResult {
   id: string
   eventId: string
   winnerBetOptionId: string | null
+  winnerBetOptionIds: string[]
   homeScore: number | null
   awayScore: number | null
   resultDisplay: string

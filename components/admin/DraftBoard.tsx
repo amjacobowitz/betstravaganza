@@ -120,13 +120,40 @@ function PickPool({
       .filter(Boolean) as { event: any; rows: typeof optionRows; takenSlots: number; totalSlots: number }[]
   }, [optionRows, filter, search, events])
 
+  const [collapsedEvents, setCollapsedEvents] = useState<Set<string>>(new Set())
+
+  function toggleEvent(id: string) {
+    setCollapsedEvents(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allExpanded = collapsedEvents.size === 0
+  function toggleAll() {
+    if (allExpanded) setCollapsedEvents(new Set(groups.map(g => g.event.id)))
+    else setCollapsedEvents(new Set())
+  }
+
   return (
-    <Card className="overflow-hidden p-0">
+    <div className="space-y-1">
+      <div className="flex justify-end pr-1">
+        <button
+          onClick={toggleAll}
+          className="text-xs text-muted hover:text-white transition-colors px-2 py-0.5"
+        >
+          {allExpanded ? 'Collapse all' : 'Expand all'}
+        </button>
+      </div>
+      <Card className="overflow-hidden p-0">
       {groups.length === 0 && (
         <div className="px-4 py-8 text-center text-muted text-sm">No options match your filter.</div>
       )}
       {groups.map(({ event, rows, takenSlots, totalSlots }) => {
         const eventFull = takenSlots >= totalSlots
+        const isCollapsed = collapsedEvents.has(event.id)
         return (
           <div key={event.id} className="border-b border-border/50 last:border-b-0">
             {/* Event header */}
@@ -134,7 +161,11 @@ function PickPool({
               const isClashEligible = event.category === 'optional' && rows.length === 2
               const hasClashInProgress = isClashEligible && rows[0].clashPickers.length > 0
               return (
-                <div className={`flex items-center gap-2 px-4 py-2 ${eventFull ? 'bg-zinc-800/30' : isClashEligible ? 'bg-clash/5' : 'bg-surface-2/50'}`}>
+                <button
+                  type="button"
+                  onClick={() => toggleEvent(event.id)}
+                  className={`w-full flex items-center gap-2 px-4 py-2 text-left transition-colors hover:brightness-110 ${eventFull ? 'bg-zinc-800/30' : isClashEligible ? 'bg-clash/5' : 'bg-surface-2/50'}`}
+                >
                   <span className="text-base">{sportEmoji(event.sport)}</span>
                   <span className={`font-semibold text-sm ${eventFull ? 'text-muted line-through' : 'text-white'}`}>
                     {event.name}
@@ -156,12 +187,13 @@ function PickPool({
                   }`}>
                     {takenSlots} / {totalSlots} slots taken
                   </span>
-                </div>
+                  <span className="text-muted/50 text-xs ml-1">{isCollapsed ? '▶' : '▼'}</span>
+                </button>
               )
             })()}
 
             {/* Option rows */}
-            <div className="divide-y divide-border/30">
+            {!isCollapsed && <div className="divide-y divide-border/30">
               {rows.map(({ option, isFull, draftCount, draftedBy, clashPickers }) => {
                 const isSelected = selectedOptionId === option.id
                 const draftedByMe = allPicks.some(p => p.betOptionId === option.id && p.userId === selectedUserId)
@@ -215,11 +247,12 @@ function PickPool({
                   </button>
                 )
               })}
-            </div>
+            </div>}
           </div>
         )
       })}
-    </Card>
+      </Card>
+    </div>
   )
 }
 
