@@ -131,6 +131,8 @@ export async function upsertSlateGame(formData: FormData) {
       away_team:    formData.get('awayTeam') as string,
       start_time_et: formData.get('startTimeEt') as string,
       spread:       formData.get('spread') ? Number(formData.get('spread')) : null,
+      away_odds:    formData.get('awayOdds') ? Number(formData.get('awayOdds')) : null,
+      home_odds:    formData.get('homeOdds') ? Number(formData.get('homeOdds')) : null,
       notes:        (formData.get('notes') as string) || null,
     }
 

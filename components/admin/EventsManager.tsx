@@ -44,6 +44,8 @@ interface SlateGame {
   start_time_et: string
   spread: number | null
   notes: string | null
+  away_odds: number | null
+  home_odds: number | null
 }
 
 interface Props {
@@ -196,6 +198,12 @@ function SlateGameForm({ bzId, game, onDone }: {
           defaultValue={formatDateTimeLocal(game?.start_time_et ?? null)} required />
         <Input name="spread" label="Spread (home)" type="number" step="0.5"
           defaultValue={game?.spread ?? ''} placeholder="e.g. -1.5" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input name="awayOdds" label="Away Odds" type="number" step="1"
+          defaultValue={game?.away_odds ?? ''} placeholder="e.g. +150" />
+        <Input name="homeOdds" label="Home Odds" type="number" step="1"
+          defaultValue={game?.home_odds ?? ''} placeholder="e.g. -175" />
       </div>
       <Input name="notes" label="Notes / Streaming" defaultValue={game?.notes ?? ''} />
       {error && <p className="text-xs text-danger">{error}</p>}

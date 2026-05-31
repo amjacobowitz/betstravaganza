@@ -29,6 +29,8 @@ interface SlateGame {
   start_time_et: string
   spread: number | null
   notes: string | null
+  away_odds: number | null
+  home_odds: number | null
 }
 
 interface ExistingPick {
@@ -43,6 +45,11 @@ interface Props {
   existingPicks: ExistingPick[]
   slateLockTime: string | null
   confidenceMultiplier: number
+}
+
+function formatOdds(odds: number | null | undefined) {
+  if (odds == null) return 'N/A'
+  return odds > 0 ? `+${odds}` : `${odds}`
 }
 
 function formatTime(iso: string) {
@@ -172,36 +179,38 @@ function SortableGameRow({
 
       {/* Team picker */}
       <div className="flex gap-2">
-        <button
-          aria-label={`${game.away_team} away`}
-          onClick={() => !locked && onPickTeam(game.id, 'away')}
-          disabled={locked}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-            teamPicked === 'away'
-              ? 'border-accent bg-accent/10 text-accent'
-              : locked
-              ? 'border-border/40 bg-surface-2/50 text-muted/40 cursor-not-allowed'
-              : 'border-border bg-surface-2 text-muted hover:text-white hover:border-border/80'
-          }`}
-        >
-          {game.away_team}
-          <span className="ml-1 text-xs opacity-60">away</span>
-        </button>
-        <button
-          aria-label={`${game.home_team} home`}
-          onClick={() => !locked && onPickTeam(game.id, 'home')}
-          disabled={locked}
-          className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-            teamPicked === 'home'
-              ? 'border-accent bg-accent/10 text-accent'
-              : locked
-              ? 'border-border/40 bg-surface-2/50 text-muted/40 cursor-not-allowed'
-              : 'border-border bg-surface-2 text-muted hover:text-white hover:border-border/80'
-          }`}
-        >
-          {game.home_team}
-          <span className="ml-1 text-xs opacity-60">home</span>
-        </button>
+        {(['away', 'home'] as const).map(side => {
+          const team = side === 'away' ? game.away_team : game.home_team
+          const odds = side === 'away' ? game.away_odds : game.home_odds
+          const picked = teamPicked === side
+          const oddsStr = formatOdds(odds)
+          const oddsColor = odds == null ? 'text-muted/40' : odds > 0 ? 'text-win' : 'text-muted'
+          return (
+            <button
+              key={side}
+              aria-label={`${team} ${side}`}
+              onClick={() => !locked && onPickTeam(game.id, side)}
+              disabled={locked}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all text-left ${
+                picked
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : locked
+                  ? 'border-border/40 bg-surface-2/50 text-muted/40 cursor-not-allowed'
+                  : 'border-border bg-surface-2 text-muted hover:text-white hover:border-border/80'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span>
+                  {team}
+                  <span className="ml-1 text-xs opacity-60">{side}</span>
+                </span>
+                <span className={`text-xs font-mono shrink-0 ${picked ? 'text-accent' : oddsColor}`}>
+                  {oddsStr}
+                </span>
+              </div>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
