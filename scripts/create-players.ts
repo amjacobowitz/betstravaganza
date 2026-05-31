@@ -26,17 +26,17 @@ function phoneToEmail(phone: string): string {
 // password is what you'll text each person. Default = last 4 digits of phone + "Betz".
 // Change any individual password here before running.
 const PLAYERS: { name: string; teamName: string; phone: string; password: string; isAdmin?: boolean }[] = [
-  { name: 'Aaron',  teamName: 'American Robins',      phone: '2488088695', password: '2488088695bets', isAdmin: true  },
-  { name: 'PJ',     teamName: "Kirtland's Warblers",  phone: '2489613672', password: '2489613672bets', isAdmin: true  },
-  { name: 'Marco',  teamName: 'Sandhill Cranes',       phone: '2484967696', password: '2484967696bets', isAdmin: true  },
-  { name: 'Jeremy', teamName: 'Tufted Titmice',        phone: '2484640812', password: '2484640812bets', isAdmin: true  },
-  { name: 'Nick',   teamName: 'Northern Cardinals',    phone: '2482254493', password: '2482254493bets'               },
-  { name: 'David',  teamName: 'Red-tailed Hawks',      phone: '2487667261', password: '2487667261bets'               },
-  { name: 'Billy',  teamName: 'Baltimore Orioles',     phone: '3042668895', password: '3042668895bets'               },
-  { name: 'Jeff',   teamName: 'Rock Pigeons',          phone: '2482024717', password: '2482024717bets'               },
-  { name: 'Chris',  teamName: 'Bald Eagles',           phone: '2489158213', password: '2489158213bets'               },
-  { name: 'Reid',   teamName: 'Wood Ducks',            phone: '6054153238', password: '6054153238bets'               },
-  { name: 'Shad',   teamName: 'Eastern Bluebirds',     phone: '6072153514', password: '6072153514bets'               },
+  { name: 'Aaron',  teamName: 'American Robins',      phone: '2488088695', password: '8695bets', isAdmin: true  },
+  { name: 'PJ',     teamName: "Kirtland's Warblers",  phone: '2489613672', password: '3672bets', isAdmin: true  },
+  { name: 'Marco',  teamName: 'Sandhill Cranes',       phone: '2484967696', password: '7696bets', isAdmin: true  },
+  { name: 'Jeremy', teamName: 'Tufted Titmice',        phone: '2484640812', password: '0812bets', isAdmin: true  },
+  { name: 'Nick',   teamName: 'Northern Cardinals',    phone: '2482254493', password: '4493bets'               },
+  { name: 'David',  teamName: 'Red-tailed Hawks',      phone: '2487667261', password: '7261bets'               },
+  { name: 'Billy',  teamName: 'Baltimore Orioles',     phone: '3042668895', password: '8895bets'               },
+  { name: 'Jeff',   teamName: 'Rock Pigeons',          phone: '2482024717', password: '4717bets'               },
+  { name: 'Chris',  teamName: 'Bald Eagles',           phone: '2489158213', password: '8213bets'               },
+  { name: 'Reid',   teamName: 'Wood Ducks',            phone: '6054153238', password: '3238bets'               },
+  { name: 'Shad',   teamName: 'Eastern Bluebirds',     phone: '6072153514', password: '3514bets'               },
 ]
 
 async function main() {
