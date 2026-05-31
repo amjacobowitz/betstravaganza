@@ -269,6 +269,6 @@ describe('DraftBoard', () => {
 
     render(<DraftBoard {...defaultProps} allPicks={myPick} />)
 
-    expect(screen.getByText('YOURS')).toBeInTheDocument()
+    expect(screen.getByText('Picked')).toBeInTheDocument()
   })
 })

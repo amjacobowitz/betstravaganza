@@ -67,6 +67,12 @@ function PickPool({
   filter: 'all' | 'required' | 'optional'
   search: string
 }) {
+  // Events this player has already picked from (one pick per event per player)
+  const myPickedEventIds = useMemo(() => {
+    const myPicks = allPicks.filter(p => p.userId === selectedUserId)
+    return new Set(myPicks.map(p => betOptions.find(o => o.id === p.betOptionId)?.eventId).filter(Boolean) as string[])
+  }, [allPicks, selectedUserId, betOptions])
+
   const optionRows = useMemo(() => events.flatMap(e => {
     const opts = betOptions.filter(o => o.eventId === e.id)
     return opts.map(o => {
@@ -140,7 +146,8 @@ function PickPool({
               {rows.map(({ option, isFull, draftCount, draftedBy, clashAvailable }) => {
                 const isSelected = selectedOptionId === option.id
                 const draftedByMe = allPicks.some(p => p.betOptionId === option.id && p.userId === selectedUserId)
-                const unavailable = isFull || draftedByMe
+                const eventPickedElsewhere = !draftedByMe && myPickedEventIds.has(option.eventId)
+                const unavailable = isFull || draftedByMe || eventPickedElsewhere
                 const showSlotCount = option.maxDrafts > 1
 
                 return (
@@ -161,7 +168,8 @@ function PickPool({
                         </span>
                         {clashAvailable && !isFull && <ClashBadge />}
                         {isFull && <Badge variant="default">FULL</Badge>}
-                        {draftedByMe && <Badge variant="win">YOURS</Badge>}
+                        {draftedByMe && <Badge variant="win">Picked</Badge>}
+                        {eventPickedElsewhere && <Badge variant="default">Event taken</Badge>}
                       </div>
                       {draftedBy.length > 0 && (
                         <div className="text-xs text-muted mt-0.5">{draftedBy.join(', ')}</div>
