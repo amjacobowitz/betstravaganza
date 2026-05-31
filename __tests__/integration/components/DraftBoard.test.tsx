@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-const { mockRecordPick, mockUndoPick } = vi.hoisted(() => ({
+const { mockRecordPick, mockUndoPick, mockSetClock, mockResetDraft } = vi.hoisted(() => ({
   mockRecordPick: vi.fn(),
   mockUndoPick: vi.fn(),
+  mockSetClock: vi.fn(),
+  mockResetDraft: vi.fn(),
 }))
 
 vi.mock('@/lib/actions/admin/draft', () => ({
   recordPick: mockRecordPick,
-  undoLastPick: mockUndoPick,
+  undoPick: mockUndoPick,
+  setDraftPickIndex: mockSetClock,
+  resetDraft: mockResetDraft,
 }))
 
 import { DraftBoard } from '@/components/admin/DraftBoard'
@@ -73,6 +77,8 @@ describe('DraftBoard', () => {
   beforeEach(() => {
     mockRecordPick.mockReset()
     mockUndoPick.mockReset()
+    mockSetClock.mockReset()
+    mockResetDraft.mockReset()
   })
 
   it('renders player sidebar with all players', () => {
@@ -213,21 +219,25 @@ describe('DraftBoard', () => {
   it('switching players updates the "Picking for" header', () => {
     render(<DraftBoard {...defaultProps} />)
 
-    expect(screen.getByText(/picking for: team a/i)).toBeInTheDocument()
-
     fireEvent.click(screen.getByText('Team B'))
 
-    expect(screen.getByText(/picking for: team b/i)).toBeInTheDocument()
+    expect(screen.getByText(/team b — roster/i)).toBeInTheDocument()
   })
 
-  it('calls undoLastPick when Undo button clicked', async () => {
-    mockUndoPick.mockResolvedValue({ ok: true })
+  it('calls resetDraft when Reset Draft button clicked and confirmed', async () => {
+    mockResetDraft.mockResolvedValue({ ok: true })
     render(<DraftBoard {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /undo last pick/i }))
+    fireEvent.click(screen.getByRole('button', { name: /reset draft/i }))
 
     await waitFor(() => {
-      expect(mockUndoPick).toHaveBeenCalledWith('bz-1')
+      expect(screen.getByText('Reset entire draft?')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /yes, reset/i }))
+
+    await waitFor(() => {
+      expect(mockResetDraft).toHaveBeenCalledWith('bz-1')
     })
   })
 
@@ -251,7 +261,7 @@ describe('DraftBoard', () => {
     expect(screen.getByText('FULL')).toBeInTheDocument()
   })
 
-  it('shows YOU HAVE badge for options already picked by selected user', () => {
+  it('shows YOURS badge for options already picked by selected user', () => {
     const myPick: DraftPick[] = [{
       id: 'dp1', userId: 'u1', betOptionId: 'o3', eventId: 'ev2',
       roundNumber: 1, createdAt: new Date(),
@@ -259,6 +269,6 @@ describe('DraftBoard', () => {
 
     render(<DraftBoard {...defaultProps} allPicks={myPick} />)
 
-    expect(screen.getByText('YOU HAVE')).toBeInTheDocument()
+    expect(screen.getByText('YOURS')).toBeInTheDocument()
   })
 })

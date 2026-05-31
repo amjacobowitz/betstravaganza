@@ -5,6 +5,12 @@ const { mockCreateBz } = vi.hoisted(() => ({
   mockCreateBz: vi.fn(),
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: vi.fn(() => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() })),
+  usePathname: vi.fn(() => '/'),
+  useSearchParams: vi.fn(() => new URLSearchParams()),
+}))
+
 vi.mock('@/lib/actions/admin/betstravaganza', () => ({
   createBetstravaganza: mockCreateBz,
   updateDraftOrder: vi.fn(),

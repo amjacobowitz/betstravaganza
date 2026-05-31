@@ -310,7 +310,7 @@ function DraftGrid({
                           ) : (
                             <button
                               onClick={() => setConfirmClockCell({ round, playerIdx })}
-                              className="text-xs text-muted/20 hover:text-muted transition-colors px-1"
+                              className="w-full h-8 text-xs text-muted/30 hover:text-muted hover:bg-surface-2/60 rounded transition-colors"
                               title="Set as next on-clock position"
                             >
                               —
@@ -593,7 +593,12 @@ export function DraftBoard({
       <div className="w-full shrink-0 space-y-2 lg:w-72">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Players</h2>
-          <span className="text-xs text-muted">Pick {currentPickIndex + 1} / {totalPicks}</span>
+          <div className="text-right">
+            <div className="text-xs font-semibold text-white">
+              Round {Math.min(Math.floor(currentPickIndex / (draftOrder.length || 1)) + 1, bz.round_count ?? 1)} of {bz.round_count}
+            </div>
+            <div className="text-xs text-muted">Pick {currentPickIndex + 1} / {totalPicks}</div>
+          </div>
         </div>
 
         {/* Reset Draft */}

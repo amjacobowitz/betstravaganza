@@ -97,9 +97,9 @@ describe('ResultsForm', () => {
     expect(screen.getByDisplayValue('Scheffler wins at -4')).toBeInTheDocument()
   })
 
-  it('shows "Has result" for events with existing results', () => {
+  it('shows "Complete" status badge for events with existing results', () => {
     render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
-    expect(screen.getByText('Has result')).toBeInTheDocument()
+    expect(screen.getByText('Complete')).toBeInTheDocument()
   })
 
   it('calls upsertResult on form submission', async () => {

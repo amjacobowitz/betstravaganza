@@ -54,6 +54,7 @@ describe('signUp', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockInsert.mockResolvedValue({ error: null })
+    mockSignIn.mockResolvedValue({ error: null })
   })
 
   it('creates auth user and profile on success', async () => {
