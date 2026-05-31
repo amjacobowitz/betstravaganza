@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 import { TeamSelector } from '@/components/player/TeamSelector'
+import { sportEmoji } from '@/lib/utils/sports'
 import {
   computePlayerBankroll,
   computeConfidenceBonus,
@@ -101,6 +102,11 @@ export default async function PicksPage({
     category: e.category as 'required' | 'optional',
     betType: e.bet_type as 'odds' | 'spread' | 'no_odds',
   }))
+
+  const eventSportMap: Record<string, string> = {}
+  for (const e of eventsData ?? []) {
+    eventSportMap[e.id] = e.sport ?? ''
+  }
 
   const myPicks: DraftPick[] = (picksData ?? []).map((p: any) => ({
     id: p.id,
@@ -274,7 +280,7 @@ export default async function PicksPage({
                             {clash && <Badge variant="clash">CLASH</Badge>}
                           </div>
                           <div className="text-xs text-muted mt-0.5">
-                            {event?.name}
+                            {sportEmoji(eventSportMap[pick.eventId] ?? '')} {event?.name}
                             {result?.resultDisplay && ` · ${result.resultDisplay}`}
                           </div>
                         </div>

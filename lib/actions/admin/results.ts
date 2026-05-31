@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -78,6 +78,23 @@ export async function upsertSlateResult(formData: FormData) {
       .from('slate_results')
       .upsert(payload, { onConflict: 'slate_game_id' })
 
+    if (error) return { error: error.message }
+    revalidatePath(`/admin/${bzId}/results`)
+    revalidatePath('/leaderboard')
+    return { ok: true }
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
+export async function deleteSlateResult(slateGameId: string, bzId: string) {
+  try {
+    await requireAdmin()
+    const adminClient = createAdminClient()
+    const { error } = await adminClient
+      .from('slate_results')
+      .delete()
+      .eq('slate_game_id', slateGameId)
     if (error) return { error: error.message }
     revalidatePath(`/admin/${bzId}/results`)
     revalidatePath('/leaderboard')

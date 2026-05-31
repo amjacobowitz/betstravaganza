@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
-import { upsertResult, upsertSlateResult } from '@/lib/actions/admin/results'
+import { upsertResult, upsertSlateResult, deleteSlateResult } from '@/lib/actions/admin/results'
 import { fetchResultsFromAPI } from '@/lib/actions/admin/fetch-results'
 import type { ProposedSlateResult, NotFoundSlateGame } from '@/lib/actions/admin/fetch-results'
 import { sportEmoji } from '@/lib/utils/sports'
@@ -146,6 +146,8 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const r = game.result
   const status = getStatus(game.start_time_et, !!r, now)
 
@@ -189,6 +191,29 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
         <p className="text-xs text-muted">Display: {r.result_display}</p>
       )}
 
+      {r && (
+        confirmReset ? (
+          <div className="rounded-lg border border-danger/40 bg-danger/10 p-2.5 space-y-1.5">
+            <p className="text-xs text-danger font-medium">Clear this result?</p>
+            <div className="flex gap-1.5">
+              <Button size="sm" variant="danger" loading={resetLoading} onClick={async () => {
+                setResetLoading(true)
+                const res = await deleteSlateResult(game.id, bzId)
+                if (res.error) setError(res.error)
+                else setConfirmReset(false)
+                setResetLoading(false)
+              }}>Clear</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setConfirmReset(true)}
+            className="text-xs text-muted/40 hover:text-danger transition-colors">
+            Reset result
+          </button>
+        )
+      )}
+
       {error && <p className="text-xs text-danger">{error}</p>}
       <Button type="submit" size="sm" loading={loading}>Save Result</Button>
     </form>
@@ -209,6 +234,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
 
   const [fetchLoading, setFetchLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [fetchDone, setFetchDone] = useState(false)
   const [proposed, setProposed] = useState<ProposedSlateResult[]>([])
   const [notFound, setNotFound] = useState<NotFoundSlateGame[]>([])
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
@@ -219,6 +245,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
   async function handleFetch() {
     setFetchLoading(true)
     setFetchError(null)
+    setFetchDone(false)
     setProposed([])
     setNotFound([])
     setSkipped(new Set())
@@ -227,6 +254,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
     else {
       setProposed(res.proposed)
       setNotFound(res.notFound)
+      setFetchDone(true)
     }
     setFetchLoading(false)
   }
@@ -289,12 +317,14 @@ export function ResultsForm({ events, slateGames, bzId }: {
         {fetchError && <span className="text-xs text-danger">{fetchError}</span>}
       </div>
 
-      {/* API confirmation panel — always visible when results are pending */}
-      {(proposed.length > 0 || notFound.length > 0) && (
+      {/* API results panel — shown after every fetch attempt */}
+      {fetchDone && (
         <Card className="space-y-3 border-accent/30">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">
-              API Results — {proposed.length} found, {notFound.length} not found
+              API Results — {proposed.length} new result{proposed.length !== 1 ? 's' : ''} found
+              {notFound.length > 0 && `, ${notFound.length} game${notFound.length !== 1 ? 's' : ''} not found`}
+              {proposed.length === 0 && notFound.length === 0 && ' — all games already saved or none completed yet'}
             </h3>
             <div className="flex gap-2">
               {proposed.length > 0 && (
@@ -302,7 +332,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
                   Confirm All ({proposed.length})
                 </Button>
               )}
-              <Button size="sm" variant="ghost" onClick={() => { setProposed([]); setNotFound([]) }}>
+              <Button size="sm" variant="ghost" onClick={() => { setProposed([]); setNotFound([]); setFetchDone(false) }}>
                 Dismiss
               </Button>
             </div>
