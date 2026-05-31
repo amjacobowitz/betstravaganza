@@ -20,7 +20,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input label="Phone Number" name="phone" type="tel" required autoComplete="tel" placeholder="(248) 555-0100" />
+      <Input label="Phone Number" name="phone" type="tel" required autoComplete="tel" placeholder="2485550100" />
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-muted">Password</label>
         <div className="relative">
