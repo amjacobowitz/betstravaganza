@@ -15,13 +15,13 @@ export async function setUserAdmin(userId: string, isAdmin: boolean) {
   try {
     await requireAdmin()
     // Use service-role client to bypass RLS — the users table has no admin update policy
-    const adminClient = await createAdminClient()
+    const adminClient = createAdminClient()
     const { error } = await adminClient
       .from('users')
       .update({ is_admin: isAdmin })
       .eq('id', userId)
     if (error) return { error: error.message }
-    revalidatePath('/admin/users')
+    revalidatePath('/admin', 'layout')
     return { ok: true }
   } catch (e: any) {
     return { error: e.message }
