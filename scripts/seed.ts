@@ -1,13 +1,17 @@
 /**
- * Seed the database with 3 test players, a betstravaganza in 'draft' state,
- * events with bet options, slate games, and slate picks for each player.
+ * Seed the database with the admin user + 2 test players, a betstravaganza in
+ * 'draft' state, events with bet options, slate games, and slate picks.
+ *
+ * Player 1 is the admin (NEXT_PUBLIC_INITIAL_ADMIN_EMAIL) — their existing auth
+ * account is reused and their profile is kept intact (team_name defaults to
+ * "Aaron's Team" only if unset).
+ * Players 2–3 are test accounts (bob@example.com, charlie@example.com).
  *
  * Usage:
- *   npx tsx scripts/seed.ts
+ *   npm run db:seed
  *
  * Env required (reads from .env.local):
- *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SECRET_KEY
+ *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY, NEXT_PUBLIC_INITIAL_ADMIN_EMAIL
  *
  * Note: run `npm run db:clear` first if you want a clean slate.
  */
@@ -67,36 +71,59 @@ const BZ_END   = new Date('2026-06-06T23:00:00-04:00').toISOString()
 async function run() {
   console.log('\n📦  Seeding database...\n')
 
-  // ── 1. Create 3 auth users ──────────────────────────────────────────────
+  const adminEmail = process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL
+  if (!adminEmail) {
+    console.error('❌  Missing NEXT_PUBLIC_INITIAL_ADMIN_EMAIL in .env.local')
+    process.exit(1)
+  }
 
-  const players = [
-    { email: 'alice@example.com',   password: 'Password123!', name: 'Alice Chen',    team: 'The Underdogs' },
-    { email: 'bob@example.com',     password: 'Password123!', name: 'Bob Martinez',  team: 'Chaos Theory'  },
-    { email: 'charlie@example.com', password: 'Password123!', name: 'Charlie Kim',   team: 'Lucky Sevens'  },
+  // ── 1. Resolve admin user + create 2 test accounts ─────────────────────
+
+  const testPlayers = [
+    { email: 'bob@example.com',     password: 'Password123!', name: 'Bob Martinez',  team: 'Chaos Theory' },
+    { email: 'charlie@example.com', password: 'Password123!', name: 'Charlie Kim',   team: 'Lucky Sevens' },
   ]
 
-  const userIds: string[] = []
-  console.log('Creating auth users...')
-  for (const p of players) {
-    const { data, error } = await admin.auth.admin.createUser({
-      email: p.email,
-      password: p.password,
-      email_confirm: true,
-    })
-    if (error && !error.message.includes('already been registered')) {
-      console.error(`  ❌  auth user ${p.email}: ${error.message}`)
-      process.exit(1)
-    }
-    const uid = data?.user?.id
-    if (!uid) {
-      // User already exists — look them up
-      const { data: list } = await admin.auth.admin.listUsers()
-      const existing = list?.users.find(u => u.email === p.email)
-      if (!existing) { console.error(`  ❌  Cannot find user ${p.email}`); process.exit(1) }
+  console.log('Resolving users...')
+  const { data: authList } = await admin.auth.admin.listUsers()
+
+  // Admin user (player 0) — must already exist
+  const adminAuthUser = authList?.users.find(u => u.email === adminEmail)
+  if (!adminAuthUser) {
+    console.error(`  ❌  Admin user ${adminEmail} not found in auth. Sign up first.`)
+    process.exit(1)
+  }
+  const adminId = adminAuthUser.id
+  console.log(`  ✓  admin ${adminEmail}`)
+
+  // Ensure admin has a users profile with a team_name
+  const { data: adminProfile } = await admin.from('users').select('*').eq('id', adminId).maybeSingle()
+  await ok(`profile ${adminEmail}`, await admin.from('users').upsert({
+    id:        adminId,
+    email:     adminEmail,
+    name:      adminProfile?.name ?? 'Aaron',
+    team_name: adminProfile?.team_name ?? "Aaron's Team",
+    is_admin:  true,
+  }, { onConflict: 'id' }).select().single())
+
+  // Create / find test players
+  const userIds: string[] = [adminId]
+  const players = [
+    { email: adminEmail, name: adminProfile?.name ?? 'Aaron', team: adminProfile?.team_name ?? "Aaron's Team" },
+    ...testPlayers.map(p => ({ email: p.email, name: p.name, team: p.team })),
+  ]
+
+  for (const p of testPlayers) {
+    const existing = authList?.users.find(u => u.email === p.email)
+    if (existing) {
       userIds.push(existing.id)
       console.log(`  ↩  auth user ${p.email} already exists`)
     } else {
-      userIds.push(uid)
+      const { data, error } = await admin.auth.admin.createUser({
+        email: p.email, password: p.password, email_confirm: true,
+      })
+      if (error) { console.error(`  ❌  auth user ${p.email}: ${error.message}`); process.exit(1) }
+      userIds.push(data!.user!.id)
       console.log(`  ✓  auth user ${p.email}`)
     }
   }
@@ -104,7 +131,7 @@ async function run() {
   // ── 2. Upsert public.users profiles ────────────────────────────────────
 
   console.log('\nUpserting user profiles...')
-  for (let i = 0; i < players.length; i++) {
+  for (let i = 1; i < players.length; i++) {
     await ok(`profile ${players[i].email}`, await admin.from('users').upsert({
       id:        userIds[i],
       email:     players[i].email,
@@ -375,8 +402,9 @@ async function run() {
   console.log('\n✅  Seed complete!')
   console.log(`\n   Betstravaganza ID: ${bzId}`)
   console.log('   Players:')
-  for (let i = 0; i < players.length; i++) {
-    console.log(`     ${players[i].email}  /  ${players[i].password}  —  ${players[i].team}`)
+  console.log(`     ${adminEmail}  (admin, existing account)  —  ${players[0].team}`)
+  for (let i = 1; i < testPlayers.length + 1; i++) {
+    console.log(`     ${players[i].email}  /  Password123!  —  ${players[i].team}`)
   }
 }
 

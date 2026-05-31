@@ -278,38 +278,16 @@ export function ResultsForm({ events, slateGames, bzId }: {
   return (
     <div className="space-y-4">
 
-      {/* Type tabs */}
-      <div className="flex gap-1">
-        {(['events', 'slate'] as const).map(t => (
-          <button key={t} onClick={() => { setTypeTab(t); setStatusFilter('all') }}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${typeTab === t ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
-            {t === 'events' ? `Events (${events.length})` : `Slate Games (${slateGames.length})`}
-          </button>
-        ))}
+      {/* Fetch from API — always visible */}
+      <div className="flex items-center gap-3">
+        <Button variant="secondary" size="sm" loading={fetchLoading} onClick={handleFetch}>
+          ↓ Fetch Results from API
+        </Button>
+        {fetchError && <span className="text-xs text-danger">{fetchError}</span>}
       </div>
 
-      {/* Status filter */}
-      <div className="flex flex-wrap gap-1">
-        {(['all', 'not_started', 'in_progress', 'complete'] as StatusFilter[]).map(s => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
-            {s === 'all' ? `All (${statusCounts.all})` : `${statusLabel[s]} (${statusCounts[s]})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Fetch from API (slate only) */}
-      {typeTab === 'slate' && (
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" size="sm" loading={fetchLoading} onClick={handleFetch}>
-            ↓ Fetch Results from API
-          </Button>
-          {fetchError && <span className="text-xs text-danger">{fetchError}</span>}
-        </div>
-      )}
-
-      {/* API confirmation panel */}
-      {(proposed.length > 0 || notFound.length > 0) && typeTab === 'slate' && (
+      {/* API confirmation panel — always visible when results are pending */}
+      {(proposed.length > 0 || notFound.length > 0) && (
         <Card className="space-y-3 border-accent/30">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">
@@ -369,6 +347,26 @@ export function ResultsForm({ events, slateGames, bzId }: {
           ))}
         </Card>
       )}
+
+      {/* Type tabs */}
+      <div className="flex gap-1">
+        {(['events', 'slate'] as const).map(t => (
+          <button key={t} onClick={() => { setTypeTab(t); setStatusFilter('all') }}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${typeTab === t ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
+            {t === 'events' ? `Events (${events.length})` : `Slate Games (${slateGames.length})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-1">
+        {(['all', 'not_started', 'in_progress', 'complete'] as StatusFilter[]).map(s => (
+          <button key={s} onClick={() => setStatusFilter(s)}
+            className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
+            {s === 'all' ? `All (${statusCounts.all})` : `${statusLabel[s]} (${statusCounts[s]})`}
+          </button>
+        ))}
+      </div>
 
       {/* Events list */}
       {typeTab === 'events' && (

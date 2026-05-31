@@ -85,7 +85,12 @@ async function run() {
   console.log('\n🎲  Seeding API test betstravaganza...\n')
 
   // ── 1. Find existing seed users ───────────────────────────────────────────
-  const emails = ['alice@example.com', 'bob@example.com', 'charlie@example.com']
+  const adminEmail = process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL
+  if (!adminEmail) {
+    console.error('❌  Missing NEXT_PUBLIC_INITIAL_ADMIN_EMAIL in .env.local')
+    process.exit(1)
+  }
+  const emails = [adminEmail, 'bob@example.com', 'charlie@example.com']
   console.log('Looking up seed users...')
   const { data: list } = await admin.auth.admin.listUsers()
   const userIds: string[] = []
@@ -238,7 +243,7 @@ async function run() {
         start_time_et:     g.commence_time,
       }).select().single()
     )
-    slateGames.push({ ...sg, _apiId: g.id, _completed: g.completed, _scores: g.scores })
+    slateGames.push({ ...(sg as any), _apiId: g.id, _completed: g.completed, _scores: g.scores })
   }
 
   if (slateGames.length === 0) {
