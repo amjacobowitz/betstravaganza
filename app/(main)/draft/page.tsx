@@ -3,6 +3,7 @@ import { getDraftState } from '@/lib/db/draft'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { sportEmoji } from '@/lib/utils/sports'
+import { BirdAvatar } from '@/components/ui/BirdAvatar'
 
 type DraftStatus = 'not_started' | 'in_progress' | 'complete'
 
@@ -122,7 +123,10 @@ export default async function PublicDraftPage() {
                   <th className="px-3 py-3 text-left text-xs text-muted font-semibold w-16">Round</th>
                   {players.map(p => (
                     <th key={p.id} className="px-3 py-3 text-left text-xs font-semibold min-w-[160px] text-white">
-                      {p.team_name}
+                      <div className="flex items-center gap-2 mb-1">
+                        <BirdAvatar teamName={p.team_name} size={28} />
+                        <span>{p.team_name}</span>
+                      </div>
                       <div className="font-normal text-muted">{p.name}</div>
                     </th>
                   ))}
@@ -188,9 +192,12 @@ export default async function PublicDraftPage() {
               const playerPicks = rawPicks.filter((dp: any) => dp.user_id === p.id) as any[]
               return (
                 <Card key={p.id} className="p-3 space-y-2">
-                  <div>
-                    <div className="font-semibold text-white">{p.team_name}</div>
-                    <div className="text-xs text-muted">{p.name}</div>
+                  <div className="flex items-center gap-2.5">
+                    <BirdAvatar teamName={p.team_name} size={40} />
+                    <div>
+                      <div className="font-semibold text-white">{p.team_name}</div>
+                      <div className="text-xs text-muted">{p.name}</div>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     {playerPicks

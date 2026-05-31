@@ -190,7 +190,7 @@ describe('DraftBoard', () => {
   it('filters options by category', () => {
     render(<DraftBoard {...defaultProps} />)
 
-    fireEvent.click(screen.getByText('required'))
+    fireEvent.click(screen.getByRole('button', { name: 'Required' }))
 
     // Should only show Belmont (required), not US vs Germany (optional)
     expect(screen.getByText('Justify')).toBeInTheDocument()
@@ -200,7 +200,7 @@ describe('DraftBoard', () => {
   it('filters options by optional', () => {
     render(<DraftBoard {...defaultProps} />)
 
-    fireEvent.click(screen.getByText('optional'))
+    fireEvent.click(screen.getByRole('button', { name: 'Optional' }))
 
     expect(screen.getByText('USA')).toBeInTheDocument()
     expect(screen.queryByText('Justify')).not.toBeInTheDocument()

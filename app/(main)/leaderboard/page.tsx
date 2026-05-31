@@ -2,6 +2,7 @@ import { getActive } from '@/lib/db/betstravaganza'
 import { getLeaderboard } from '@/lib/db/leaderboard'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { BirdAvatar } from '@/components/ui/BirdAvatar'
 
 function formatMoney(n: number) {
   const sign = n >= 0 ? '+' : ''
@@ -54,8 +55,13 @@ export default async function LeaderboardPage() {
                       {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-white">{e.teamName}</div>
-                      <div className="text-xs text-muted">{e.name}</div>
+                      <div className="flex items-center gap-2.5">
+                        <BirdAvatar teamName={e.teamName} size={36} />
+                        <div>
+                          <div className="font-semibold text-white">{e.teamName}</div>
+                          <div className="text-xs text-muted">{e.name}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-sm">
                       <span className="text-win">{e.wins}</span>

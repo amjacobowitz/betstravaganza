@@ -4,6 +4,7 @@ import { getActive } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { BirdAvatar } from '@/components/ui/BirdAvatar'
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 import { TeamSelector } from '@/components/player/TeamSelector'
 import { sportEmoji } from '@/lib/utils/sports'
@@ -199,9 +200,7 @@ export default async function PicksPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-white">Picks</h1>
-      </div>
+      <h1 className="text-2xl font-bold text-white">Picks</h1>
 
       {/* Tab bar */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -244,10 +243,20 @@ export default async function PicksPage({
       {/* Picks display */}
       {(isOwnPicks || viewUser) && (
         <>
-          {/* Heading for others */}
-          {!isOwnPicks && (
-            <h2 className="text-xl font-bold text-white">{viewTeamName}&apos;s Picks</h2>
-          )}
+          {/* Bird + team heading — shown for both own and others */}
+          {(() => {
+            const displayUser = isOwnPicks
+              ? allUsers.find(u => u.id === currentUser.id)
+              : viewUser
+            const displayName = displayUser?.team_name ?? displayUser?.name ?? 'Unknown'
+            const suffix = isOwnPicks ? '' : "'s Picks"
+            return (
+              <div className="flex items-center gap-3">
+                <BirdAvatar teamName={displayUser?.team_name} size={48} />
+                <h2 className="text-xl font-bold text-white">{displayName}{suffix}</h2>
+              </div>
+            )
+          })()}
 
           {/* Bankroll summary */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

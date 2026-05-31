@@ -8,6 +8,7 @@ import { recordPick, undoPick, setDraftPickIndex, resetDraft } from '@/lib/actio
 import { validateDraftTurn, isClashPick } from '@/lib/scoring'
 import type { DraftPick, BetOption, ScoringEvent } from '@/lib/scoring/types'
 import { sportEmoji } from '@/lib/utils/sports'
+import { getBird } from '@/lib/utils/birds'
 
 interface PlayerStatus {
   userId: string
@@ -54,7 +55,7 @@ function AvailDot({ draftCount, maxDrafts }: { draftCount: number; maxDrafts: nu
 
 function PickPool({
   events, betOptions, scoringEvents, allPicks, allUsers,
-  selectedUserId, selectedOptionId, onSelectOption, filter, search, hideFull,
+  selectedUserId, selectedOptionId, onSelectOption, activeFilters, search,
 }: {
   events: any[]
   betOptions: BetOption[]
@@ -64,9 +65,8 @@ function PickPool({
   selectedUserId: string
   selectedOptionId: string
   onSelectOption: (id: string) => void
-  filter: 'all' | 'required' | 'optional' | 'clashable'
+  activeFilters: Set<string>
   search: string
-  hideFull: boolean
 }) {
   // Events this player has already picked from (one pick per event per player)
   const myPickedEventIds = useMemo(() => {
@@ -95,11 +95,22 @@ function PickPool({
 
   // Filter then group by event
   const groups = useMemo(() => {
+    const myPickedEventIds = new Set(
+      allPicks.filter(p => p.userId === selectedUserId)
+        .map(p => betOptions.find(o => o.id === p.betOptionId)?.eventId)
+        .filter(Boolean) as string[]
+    )
     const filtered = optionRows.filter(r => {
-      if (filter === 'required' && r.event.category !== 'required') return false
-      if (filter === 'optional' && r.event.category !== 'optional') return false
-      if (filter === 'clashable' && r.clashPickers.length === 0) return false
-      if (hideFull && r.isFull) return false
+      if (activeFilters.has('required') && r.event.category !== 'required') return false
+      if (activeFilters.has('optional') && r.event.category !== 'optional') return false
+      if (activeFilters.has('clashable') && r.clashPickers.length === 0) return false
+      if (activeFilters.has('available') && r.isFull) return false
+      if (activeFilters.has('eligible')) {
+        const draftedByMe = allPicks.some(p => p.betOptionId === r.option.id && p.userId === selectedUserId)
+        const eventPickedElsewhere = !draftedByMe && myPickedEventIds.has(r.option.eventId)
+        const unavailable = r.isFull || draftedByMe || eventPickedElsewhere
+        if (unavailable) return false
+      }
       if (search) {
         const q = search.toLowerCase()
         if (!r.option.label.toLowerCase().includes(q) && !r.event.name.toLowerCase().includes(q)) return false
@@ -118,7 +129,8 @@ function PickPool({
         return { event: e, rows, takenSlots, totalSlots }
       })
       .filter(Boolean) as { event: any; rows: typeof optionRows; takenSlots: number; totalSlots: number }[]
-  }, [optionRows, filter, search, events])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [optionRows, activeFilters, search, events, allPicks, selectedUserId])
 
   const [collapsedEvents, setCollapsedEvents] = useState<Set<string>>(new Set())
 
@@ -610,9 +622,17 @@ export function DraftBoard({
   useEffect(() => {
     if (currentUserId) setSelectedUserId(currentUserId)
   }, [currentUserId])
-  const [filter, setFilter] = useState<'all' | 'required' | 'optional' | 'clashable'>('all')
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
-  const [hideFull, setHideFull] = useState(false)
+
+  function toggleFilter(key: string) {
+    setActiveFilters(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
   const [showLegend, setShowLegend] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -716,14 +736,23 @@ export function DraftBoard({
               `}
             >
               <div className="flex items-center justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    {isCurrent && <span className="text-xs font-bold text-accent-2">ON CLOCK</span>}
-                    <span className="font-semibold text-white text-sm">{p.teamName}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  {(() => {
+                    const bird = getBird(p.teamName)
+                    return bird ? (
+                      <img src={bird.imageUrl} alt={bird.species} width={28} height={28}
+                        className="rounded-full object-cover shrink-0 ring-1 ring-border/50" style={{ width: 28, height: 28 }} />
+                    ) : null
+                  })()}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isCurrent && <span className="text-xs font-bold text-accent-2">ON CLOCK</span>}
+                      <span className="font-semibold text-white text-sm">{p.teamName}</span>
+                    </div>
+                    <div className="text-xs text-muted">{p.name}</div>
                   </div>
-                  <div className="text-xs text-muted">{p.name}</div>
                 </div>
-                <span className={`text-xs font-mono ${p.totalPicks > bz.round_count ? 'text-danger' : 'text-muted'}`}>
+                <span className={`text-xs font-mono shrink-0 ${p.totalPicks > bz.round_count ? 'text-danger' : 'text-muted'}`}>
                   {p.totalPicks}/{bz.round_count}
                   {p.totalPicks > bz.round_count && ' ⚠'}
                 </span>
@@ -790,18 +819,35 @@ export function DraftBoard({
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {(['all', 'required', 'optional', 'clashable'] as const).map(f => (
+              {activeFilters.size > 0 && (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`rounded-lg px-3 py-1 text-xs font-medium capitalize transition-colors
-                    ${filter === f
-                      ? f === 'clashable' ? 'bg-clash text-black' : 'bg-accent text-black'
-                      : 'bg-surface-2 text-muted hover:text-white'}`}
+                  onClick={() => setActiveFilters(new Set())}
+                  className="h-7 rounded-lg border border-border/50 px-2.5 text-xs text-muted hover:text-white transition-colors"
                 >
-                  {f === 'clashable' ? '⚔️ Clashable' : f}
+                  Clear
                 </button>
-              ))}
+              )}
+              {([
+                { key: 'required',  label: 'Required',    color: 'bg-accent' },
+                { key: 'optional',  label: 'Optional',    color: 'bg-accent' },
+                { key: 'clashable', label: '⚔️ Clashable', color: 'bg-clash' },
+                { key: 'eligible',  label: '✓ Eligible',  color: 'bg-win' },
+                { key: 'available', label: 'Available',   color: 'bg-accent' },
+              ] as const).map(({ key, label, color }) => {
+                const active = activeFilters.has(key)
+                return (
+                  <button
+                    key={key}
+                    onClick={() => toggleFilter(key)}
+                    className={`h-7 rounded-lg px-3 text-xs font-medium transition-colors border
+                      ${active
+                        ? `${color} text-black border-transparent`
+                        : 'bg-surface-2 text-muted border-border hover:text-white hover:border-border/80'}`}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
               <input
                 type="text"
                 placeholder="Search..."
@@ -809,14 +855,6 @@ export function DraftBoard({
                 onChange={e => setSearch(e.target.value)}
                 className="h-7 rounded-lg bg-surface-2 border border-border px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-accent"
               />
-              <button
-                onClick={() => setHideFull(v => !v)}
-                className={`h-7 rounded-lg border px-2.5 text-xs font-medium transition-colors
-                  ${hideFull ? 'bg-accent text-black border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
-                title="Hide fully-drafted options"
-              >
-                Hide Full
-              </button>
               <button
                 onClick={() => setShowLegend(v => !v)}
                 className={`h-7 w-7 rounded-lg border text-xs font-semibold transition-colors flex items-center justify-center
@@ -905,9 +943,8 @@ export function DraftBoard({
               selectedUserId={selectedUserId}
               selectedOptionId={selectedOptionId}
               onSelectOption={setSelectedOptionId}
-              filter={filter}
+              activeFilters={activeFilters}
               search={search}
-              hideFull={hideFull}
             />
             <div className="sticky bottom-4">
               <Button
