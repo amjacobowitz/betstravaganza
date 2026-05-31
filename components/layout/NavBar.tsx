@@ -12,6 +12,7 @@ interface NavBarProps {
 const mainLinks = [
   { href: '/leaderboard', label: '🏆 Leaderboard' },
   { href: '/picks',       label: '🎯 Picks'        },
+  { href: '/draft',       label: '📋 Draft'        },
   { href: '/slate',       label: '🏟 Slate'         },
   { href: '/schedule',    label: '📅 Schedule'     },
   { href: '/profile',     label: '👤 Profile'      },

@@ -93,11 +93,6 @@ export default async function SlatePage() {
           const gamePicks = slatePicks.filter((p: any) => p.slate_game_id === game.id)
           const gameResult = slateResults.find((r: any) => r.slate_game_id === game.id)
 
-          // CLASH detection: any player picked home AND any other picked away
-          const homePickers = gamePicks.filter((p: any) => p.team_picked === 'home')
-          const awayPickers = gamePicks.filter((p: any) => p.team_picked === 'away')
-          const isClash = homePickers.length > 0 && awayPickers.length > 0
-
           const homeWon = gameResult
             ? Number(gameResult.home_score) > Number(gameResult.away_score)
             : null
@@ -112,11 +107,6 @@ export default async function SlatePage() {
                     <span className="font-bold text-white text-sm">
                       {game.away_team} @ {game.home_team}
                     </span>
-                    {isClash && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/50 px-2 py-0.5 text-xs font-bold text-amber-400 uppercase tracking-wide">
-                        ⚡ CLASH
-                      </span>
-                    )}
                     {gameResult && (
                       <span className="inline-flex items-center rounded-full bg-win/20 border border-win/40 px-2 py-0.5 text-xs font-semibold text-win">
                         Final: {game.away_team} {gameResult.away_score} – {game.home_team} {gameResult.home_score}
