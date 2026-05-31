@@ -74,7 +74,7 @@ if (!ODDS_API_KEY) {
 const DATE_ET         = process.env.DATE_ET ?? '2026-06-06'
 const ROUND_COUNT     = Number(process.env.ROUND_COUNT ?? 11)
 const STAKE_AMOUNT    = Number(process.env.STAKE_AMOUNT ?? 100)
-const START_BANKROLL  = Number(process.env.STARTING_BANKROLL ?? 1000)
+const START_BANKROLL  = Number(process.env.STARTING_BANKROLL ?? 1100)
 const CONF_MULT       = Number(process.env.CONFIDENCE_MULTIPLIER ?? 3)
 const PLAYER_EMAILS   = process.env.PLAYER_EMAILS?.split(',').map(e => e.trim()).filter(Boolean)
 const DEACTIVATE      = process.env.DEACTIVATE_EXISTING !== '0'
