@@ -21,7 +21,7 @@ export default async function EventsPage({
     .from('slate_games')
     .select('*')
     .eq('betstravaganza_id', bz.id)
-    .order('sort_order')
+    .order('start_time_et')
 
   return (
     <div className="space-y-4">

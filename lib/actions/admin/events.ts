@@ -26,7 +26,6 @@ export async function upsertEvent(formData: FormData) {
       start_time_et:     (formData.get('startTimeEt') as string) || null,
       streaming_info:    (formData.get('streamingInfo') as string) || null,
       notes:             (formData.get('notes') as string) || null,
-      sort_order:        Number(formData.get('sortOrder') ?? 0),
     }
 
     const { data, error } = id
@@ -103,7 +102,6 @@ export async function upsertSlateGame(formData: FormData) {
       start_time_et: formData.get('startTimeEt') as string,
       spread:       formData.get('spread') ? Number(formData.get('spread')) : null,
       notes:        (formData.get('notes') as string) || null,
-      sort_order:   Number(formData.get('sortOrder') ?? 0),
     }
 
     const { data, error } = id

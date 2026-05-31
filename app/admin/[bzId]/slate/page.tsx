@@ -16,7 +16,7 @@ export default async function SlatePage({
   const supabase = await createClient()
   const [{ data: users }, { data: slateGames }, { data: slatePicks }] = await Promise.all([
     supabase.from('users').select('id, name, team_name').order('name'),
-    supabase.from('slate_games').select('id, away_team, home_team, sport_label, start_time_et').eq('betstravaganza_id', bz.id).order('sort_order'),
+    supabase.from('slate_games').select('id, away_team, home_team, sport_label, start_time_et').eq('betstravaganza_id', bz.id).order('start_time_et'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id),
   ])
 
@@ -85,7 +85,7 @@ export default async function SlatePage({
                         return (
                           <div key={pick.id} className="flex items-center gap-2 text-xs">
                             <span className="w-5 text-right font-mono font-bold text-accent-2">
-                              {pick.confidence_rank}
+                              #{gameCount - pick.confidence_rank + 1}
                             </span>
                             <span className="text-white font-medium">{picked}</span>
                             <span className="text-muted">({game.away_team} @ {game.home_team})</span>

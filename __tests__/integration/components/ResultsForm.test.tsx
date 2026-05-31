@@ -11,6 +11,10 @@ vi.mock('@/lib/actions/admin/results', () => ({
   upsertSlateResult: mockUpsertSlateResult,
 }))
 
+vi.mock('@/lib/actions/admin/fetch-results', () => ({
+  fetchResultsFromAPI: vi.fn().mockResolvedValue({ proposed: [], notFound: [] }),
+}))
+
 import { ResultsForm } from '@/components/admin/ResultsForm'
 
 const events = [
@@ -20,6 +24,7 @@ const events = [
     sport: 'Horse Racing',
     bet_type: 'odds',
     category: 'required',
+    start_time_et: null,
     bet_options: [
       { id: 'o1', label: 'Justify', odds: -150 },
       { id: 'o2', label: 'American Pharoah', odds: 200 },
@@ -32,6 +37,7 @@ const events = [
     sport: 'Golf',
     bet_type: 'odds',
     category: 'required',
+    start_time_et: '2026-06-01T14:00:00Z',
     bet_options: [
       { id: 'o3', label: 'Scottie Scheffler', odds: -120 },
     ],
@@ -50,9 +56,12 @@ const slateGames = [
     away_team: 'Yankees',
     home_team: 'Red Sox',
     sport_label: 'MLB',
+    start_time_et: null,
     result: null,
   },
 ]
+
+const bzId = 'test-bz-id'
 
 describe('ResultsForm', () => {
   beforeEach(() => {
@@ -61,19 +70,19 @@ describe('ResultsForm', () => {
   })
 
   it('renders events tab by default', () => {
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
     expect(screen.getByText(/belmont stakes/i)).toBeInTheDocument()
     expect(screen.getByText(/us open/i)).toBeInTheDocument()
   })
 
   it('shows tab with event and slate game counts', () => {
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
     expect(screen.getByText(/events \(2\)/i)).toBeInTheDocument()
     expect(screen.getByText(/slate games \(1\)/i)).toBeInTheDocument()
   })
 
   it('switches to slate tab', () => {
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     fireEvent.click(screen.getByText(/slate games/i))
 
@@ -81,7 +90,7 @@ describe('ResultsForm', () => {
   })
 
   it('pre-fills existing result values', () => {
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     // The second event has an existing result_display — find it by its value
     // (multiple forms reuse the same label, so search by display value instead)
@@ -89,13 +98,13 @@ describe('ResultsForm', () => {
   })
 
   it('shows "Has result" for events with existing results', () => {
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
     expect(screen.getByText('Has result')).toBeInTheDocument()
   })
 
   it('calls upsertResult on form submission', async () => {
     mockUpsertResult.mockResolvedValue({ ok: true })
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
     fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
@@ -110,7 +119,7 @@ describe('ResultsForm', () => {
 
   it('shows ✓ Saved after successful submission', async () => {
     mockUpsertResult.mockResolvedValue({ ok: true })
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
     fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
@@ -125,7 +134,7 @@ describe('ResultsForm', () => {
 
   it('shows error on submission failure', async () => {
     mockUpsertResult.mockResolvedValue({ error: 'DB error' })
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     const resultDisplay = screen.getAllByLabelText(/result display/i)[0]
     fireEvent.change(resultDisplay, { target: { value: 'Justify wins' } })
@@ -140,7 +149,7 @@ describe('ResultsForm', () => {
 
   it('calls upsertSlateResult for slate games', async () => {
     mockUpsertSlateResult.mockResolvedValue({ ok: true })
-    render(<ResultsForm events={events} slateGames={slateGames} />)
+    render(<ResultsForm events={events} slateGames={slateGames} bzId={bzId} />)
 
     fireEvent.click(screen.getByText(/slate games/i))
 

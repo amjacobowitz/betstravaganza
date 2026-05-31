@@ -138,7 +138,7 @@ function SortableGameRow({
         {/* Rank + potential */}
         <div className="shrink-0 text-right space-y-0.5">
           <div className={`text-xs font-bold font-mono ${isTop ? 'text-accent' : isBottom ? 'text-muted' : 'text-white'}`}>
-            #{rank}
+            #{totalGames - rank + 1}
           </div>
           <div className={`text-xs font-mono ${teamPicked ? 'text-win' : 'text-muted/50'}`}>
             +${potential}

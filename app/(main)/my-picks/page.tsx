@@ -61,7 +61,7 @@ export default async function MyPicksPage() {
     supabase.from('bet_options').select('*'),
     supabase.from('events').select('*').eq('betstravaganza_id', bz.id),
     supabase.from('results').select('*'),
-    supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('sort_order'),
+    supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', user.id),
     supabase.from('slate_results').select('*'),
   ])
@@ -259,7 +259,7 @@ export default async function MyPicksPage() {
                     return (
                       <div key={sp.id} className="flex items-center gap-3 px-4 py-2.5">
                         <span className="w-5 text-right font-mono text-xs font-bold text-accent-2">
-                          {sp.confidenceRank}
+                          #{slateGames.length - sp.confidenceRank + 1}
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm text-white">{pickedTeam}</div>

@@ -10,6 +10,8 @@ import {
   upsertBetOption, deleteBetOption,
   upsertSlateGame,
 } from '@/lib/actions/admin/events'
+import { SPORTS, sportEmoji } from '@/lib/utils/sports'
+import { toDatetimeLocalET } from '@/lib/utils/datetime'
 
 interface BetOption {
   id: string
@@ -28,7 +30,6 @@ interface Event {
   start_time_et: string | null
   streaming_info: string | null
   notes: string | null
-  sort_order: number
   bet_options: BetOption[]
 }
 
@@ -40,7 +41,6 @@ interface SlateGame {
   start_time_et: string
   spread: number | null
   notes: string | null
-  sort_order: number
 }
 
 interface Props {
@@ -50,8 +50,7 @@ interface Props {
 }
 
 function formatDateTimeLocal(iso: string | null) {
-  if (!iso) return ''
-  return new Date(iso).toISOString().slice(0, 16)
+  return toDatetimeLocalET(iso)
 }
 
 function EventForm({ bzId, event, onDone }: {
@@ -77,9 +76,17 @@ function EventForm({ bzId, event, onDone }: {
     <form onSubmit={submit} className="space-y-3 p-4 bg-surface-2 rounded-lg border border-border">
       <div className="grid grid-cols-2 gap-3">
         <Input name="name" label="Name" defaultValue={event?.name} required />
-        <Input name="sport" label="Sport" defaultValue={event?.sport} required />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-muted">Sport</label>
+          <select name="sport" defaultValue={event?.sport ?? 'Baseball'}
+            className="h-10 rounded-lg border border-border bg-surface-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent">
+            {SPORTS.map(s => (
+              <option key={s} value={s}>{sportEmoji(s)} {s}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-muted">Category</label>
           <select name="category" defaultValue={event?.category ?? 'optional'}
@@ -97,7 +104,6 @@ function EventForm({ bzId, event, onDone }: {
             <option value="no_odds">No Odds</option>
           </select>
         </div>
-        <Input name="sortOrder" label="Sort Order" type="number" defaultValue={event?.sort_order ?? 0} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Input name="startTimeEt" label="Start Time (ET)" type="datetime-local"
@@ -178,16 +184,23 @@ function SlateGameForm({ bzId, game, onDone }: {
   return (
     <form onSubmit={submit} className="space-y-3 p-4 bg-surface-2 rounded-lg border border-border">
       <div className="grid grid-cols-3 gap-3">
-        <Input name="sportLabel" label="Sport" defaultValue={game?.sport_label ?? 'MLB'} required />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-muted">Sport</label>
+          <select name="sportLabel" defaultValue={game?.sport_label ?? 'Baseball'}
+            className="h-10 rounded-lg border border-border bg-surface-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent">
+            {SPORTS.map(s => (
+              <option key={s} value={s}>{sportEmoji(s)} {s}</option>
+            ))}
+          </select>
+        </div>
         <Input name="awayTeam" label="Away Team" defaultValue={game?.away_team} required />
         <Input name="homeTeam" label="Home Team" defaultValue={game?.home_team} required />
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Input name="startTimeEt" label="Start Time (ET)" type="datetime-local"
           defaultValue={formatDateTimeLocal(game?.start_time_et ?? null)} required />
         <Input name="spread" label="Spread (home)" type="number" step="0.5"
           defaultValue={game?.spread ?? ''} placeholder="e.g. -1.5" />
-        <Input name="sortOrder" label="Sort Order" type="number" defaultValue={game?.sort_order ?? 0} />
       </div>
       <Input name="notes" label="Notes / Streaming" defaultValue={game?.notes ?? ''} />
       {error && <p className="text-xs text-danger">{error}</p>}
@@ -277,7 +290,7 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
                   }}>Edit</Button>
                   <Button variant="danger" size="sm"
                     loading={deletingId === event.id}
-                    onClick={() => handleDeleteEvent(event.id)}>Del</Button>
+                    onClick={() => handleDeleteEvent(event.id)}>Delete</Button>
                 </div>
               </div>
 
@@ -313,7 +326,7 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
                           <Button variant="ghost" size="sm" onClick={() => setEditingOptionId(opt.id)}>Edit</Button>
                           <Button variant="danger" size="sm"
                             loading={deletingId === opt.id}
-                            onClick={() => handleDeleteOption(opt.id)}>Del</Button>
+                            onClick={() => handleDeleteOption(opt.id)}>Delete</Button>
                         </div>
                       )}
                     </div>

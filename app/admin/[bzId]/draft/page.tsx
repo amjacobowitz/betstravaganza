@@ -72,6 +72,7 @@ export default async function DraftPage({
       events: scoringEvents,
       requiredEventIds,
       totalRounds: bz.round_count ?? 11,
+      teamName: u.team_name,
     })
     const requiredSatisfied = requiredEventIds.filter(rid =>
       playerPicks.some(p => betOptions.find(o => o.id === p.betOptionId)?.eventId === rid)
@@ -90,7 +91,7 @@ export default async function DraftPage({
       clashCount,
       clashRequired: 2,
       requiredRemaining: validation.requiredRemaining,
-      roundsRemaining: (bz.round_count ?? 11) - playerPicks.length,
+      roundsRemaining: Math.max(0, (bz.round_count ?? 11) - playerPicks.length),
     }
   })
 

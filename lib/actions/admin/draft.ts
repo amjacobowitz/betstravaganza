@@ -104,6 +104,78 @@ export async function recordPick(input: {
   return { ok: true }
 }
 
+export async function setDraftPickIndex(betstravaganzaId: string, pickIndex: number) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const { error } = await supabase
+    .from('betstravaganza')
+    .update({ current_pick_index: pickIndex })
+    .eq('id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
+export async function undoPick(betstravaganzaId: string, pickId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const { error } = await supabase
+    .from('draft_picks')
+    .delete()
+    .eq('id', pickId)
+    .eq('betstravaganza_id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+
+  const { data: last } = await supabase
+    .from('draft_picks')
+    .select('pick_index')
+    .eq('betstravaganza_id', betstravaganzaId)
+    .order('pick_index', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  await supabase
+    .from('betstravaganza')
+    .update({ current_pick_index: last ? last.pick_index + 1 : 0 })
+    .eq('id', betstravaganzaId)
+
+  revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
+export async function resetDraft(betstravaganzaId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const { error } = await supabase
+    .from('draft_picks')
+    .delete()
+    .eq('betstravaganza_id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+
+  await supabase
+    .from('betstravaganza')
+    .update({ current_pick_index: 0 })
+    .eq('id', betstravaganzaId)
+
+  revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
 export async function undoLastPick(betstravaganzaId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -18,7 +18,7 @@ export default async function ResultsPage({
   const eventIds = rawEvents.map((e: any) => e.id)
 
   const [{ data: rawSlateGames }, { data: results }, { data: slateResults }] = await Promise.all([
-    supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('sort_order'),
+    supabase.from('slate_games').select('id, away_team, home_team, sport_label, start_time_et').eq('betstravaganza_id', bz.id).order('start_time_et'),
     eventIds.length > 0
       ? supabase.from('results').select('*').in('event_id', eventIds)
       : Promise.resolve({ data: [] }),
@@ -37,7 +37,7 @@ export default async function ResultsPage({
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold text-white">Results</h2>
-      <ResultsForm events={events} slateGames={slateGames} />
+      <ResultsForm events={events} slateGames={slateGames} bzId={bzId} />
     </div>
   )
 }

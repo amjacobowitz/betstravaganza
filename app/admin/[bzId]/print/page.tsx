@@ -16,7 +16,7 @@ export default async function PrintPage({
   const supabase = await createClient()
   const [events, { data: slateGames }] = await Promise.all([
     getEventsWithOptions(bz.id),
-    supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('sort_order'),
+    supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
   ])
 
   return (

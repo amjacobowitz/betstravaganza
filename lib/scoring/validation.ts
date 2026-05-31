@@ -10,6 +10,7 @@ export function validateDraftTurn({
   events,
   requiredEventIds,
   totalRounds,
+  teamName,
 }: ValidateDraftTurnInput): ValidationResult {
   const roundsRemaining = totalRounds - playerPicks.length
   const proposedOption = betOptions.find(bo => bo.id === proposedBetOptionId)
@@ -33,14 +34,28 @@ export function validateDraftTurn({
   const requiredRemaining = computeRequiredRemaining(playerPicks, requiredEventIds, events)
   const clashPicksNeeded = computeClashPicksNeeded(userId, playerPicks, allPicks, betOptions, events)
 
+  const who = teamName ?? 'This player'
+
+  // No rounds remaining
+  if (roundsRemaining <= 0) {
+    return {
+      valid: false,
+      reason: `${who} has no draft rounds remaining.`,
+      requiredRemaining,
+      clashPicksNeeded,
+    }
+  }
+
   // Check if proposed pick is optional when we must take required
   const proposedEvent = proposedOption ? events.find(e => e.id === proposedOption.eventId) : null
   const isProposingOptional = proposedEvent?.category === 'optional'
 
   if (isProposingOptional && requiredRemaining.length >= roundsRemaining) {
+    const n = requiredRemaining.length
+    const r = roundsRemaining
     return {
       valid: false,
-      reason: `You still need ${requiredRemaining.length} required pick${requiredRemaining.length !== 1 ? 's' : ''} and only have ${roundsRemaining} round${roundsRemaining !== 1 ? 's' : ''} left. You must draft a required event.`,
+      reason: `${who} still needs ${n} required pick${n !== 1 ? 's' : ''} and only has ${r} round${r !== 1 ? 's' : ''} left. Must draft a required event.`,
       requiredRemaining,
       clashPicksNeeded,
     }

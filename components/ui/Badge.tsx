@@ -28,7 +28,7 @@ export function Badge({ variant = 'default', children, className = '' }: BadgePr
 export function ClashBadge() {
   return (
     <Badge variant="clash">
-      🏈💥🏈 CLASH
+      🪖💥🪖 CLASH
     </Badge>
   )
 }

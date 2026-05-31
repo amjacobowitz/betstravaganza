@@ -81,6 +81,7 @@ export interface ValidateDraftTurnInput {
   events: ScoringEvent[]
   requiredEventIds: string[]
   totalRounds: number
+  teamName?: string
 }
 
 export interface ComputeBankrollInput {

@@ -7,7 +7,7 @@ export async function getEventsWithOptions(betstravaganzaId: string) {
     .select('*, bet_options(*)')
     .eq('betstravaganza_id', betstravaganzaId)
     .eq('is_active', true)
-    .order('sort_order')
+    .order('start_time_et', { ascending: true, nullsFirst: false })
   return data ?? []
 }
 
