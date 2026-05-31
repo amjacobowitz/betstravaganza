@@ -74,7 +74,7 @@ async function run() {
 
   for (const table of tables) {
     // Use a filter that always matches all rows (id column exists on every table)
-    const { error, count } = await admin.from(table).delete().gte('created_at', '2000-01-01').select('id', { count: 'exact', head: true })
+    const { error } = await admin.from(table).delete().gte('created_at', '2000-01-01')
     if (error) {
       console.error(`  ❌  ${table}: ${error.message}`)
     } else {

@@ -77,19 +77,33 @@ export default async function SchedulePage() {
     return { allOptions, filledOptions, isClash, totalPicks: picks.length }
   }
 
+  // Total slate games picked per user — used to show rank in context (e.g. "#2 of 12")
+  const totalSlatePicksByUser: Record<string, number> = {}
+  for (const p of (slatePicks ?? [])) {
+    totalSlatePicksByUser[p.user_id] = (totalSlatePicksByUser[p.user_id] ?? 0) + 1
+  }
+
   function getSlatePickInfo(gameId: string) {
     const picks = (slatePicks ?? []).filter((p: any) => p.slate_game_id === gameId)
-    const homeTeam: string[] = []
-    const awayTeam: string[] = []
+    const homeSide: { name: string; rank: number; total: number }[] = []
+    const awaySide: { name: string; rank: number; total: number }[] = []
     for (const pick of picks) {
       const u = userById[pick.user_id]
       if (!u) continue
-      const name = u.team_name ?? u.name
-      if (pick.team_picked === 'home') homeTeam.push(name)
-      else awayTeam.push(name)
+      const entry = {
+        name:  u.team_name ?? u.name,
+        rank:  pick.confidence_rank as number,
+        total: totalSlatePicksByUser[pick.user_id] ?? 1,
+      }
+      if (pick.team_picked === 'home') homeSide.push(entry)
+      else awaySide.push(entry)
     }
-    const isClash = homeTeam.length > 0 && awayTeam.length > 0
-    return { homeTeam, awayTeam, isClash, totalPicks: picks.length }
+    // Sort each side by rank descending (highest confidence = highest rank number first)
+    const byRankDesc = (a: typeof homeSide[0], b: typeof homeSide[0]) => b.rank - a.rank
+    homeSide.sort(byRankDesc)
+    awaySide.sort(byRankDesc)
+    const isClash = homeSide.length > 0 && awaySide.length > 0
+    return { homeSide, awaySide, isClash, totalPicks: picks.length }
   }
 
   type ScheduleItem = {
@@ -211,20 +225,20 @@ export default async function SchedulePage() {
                       </div>
                     </div>
 
-                    {/* Slate game: matchup layout */}
+                    {/* Slate game: two horizontal rows, one per side */}
                     {item.isSlate && slatePickInfo && (
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <PickerSide
-                          label={item.awayTeam}
-                          sublabel={item.spread != null ? (item.spread > 0 ? `+${item.spread}` : `${item.spread}`) : undefined}
-                          pickers={slatePickInfo.awayTeam}
-                          side="away"
+                      <div className="flex flex-col gap-1.5">
+                        <SlateSideRow
+                          side="AWAY"
+                          team={item.awayTeam}
+                          spread={item.spread != null ? -item.spread : null}
+                          pickers={slatePickInfo.awaySide}
                         />
-                        <PickerSide
-                          label={item.homeTeam}
-                          sublabel={item.spread != null ? (item.spread > 0 ? `${-item.spread}` : `+${-item.spread}`) : undefined}
-                          pickers={slatePickInfo.homeTeam}
-                          side="home"
+                        <SlateSideRow
+                          side="HOME"
+                          team={item.homeTeam}
+                          spread={item.spread}
+                          pickers={slatePickInfo.homeSide}
                         />
                       </div>
                     )}
@@ -296,28 +310,49 @@ export default async function SchedulePage() {
   )
 }
 
-function PickerSide({
-  label,
-  sublabel,
-  pickers,
+function SlateSideRow({
   side,
+  team,
+  spread,
+  pickers,
 }: {
-  label: string
-  sublabel?: string
-  pickers: string[]
-  side: 'away' | 'home'
+  side: 'AWAY' | 'HOME'
+  team: string
+  spread: number | null
+  pickers: { name: string; rank: number; total: number }[]
 }) {
+  const spreadLabel = spread == null ? null : spread > 0 ? `+${spread}` : `${spread}`
+  const isFav = spread != null && spread < 0
+
   return (
-    <div className={`rounded-lg border border-border/40 bg-surface-2/60 px-3 py-2 flex flex-col gap-1.5 ${side === 'home' ? 'items-end text-right' : ''}`}>
-      <div>
-        <p className="text-xs font-semibold text-white">{label}</p>
-        {sublabel && <p className="text-xs font-mono text-muted">{sublabel}</p>}
+    <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-surface-2/60 px-3 py-2">
+      {/* Side label */}
+      <span className="shrink-0 text-xs font-bold text-muted/50 w-9">{side}</span>
+
+      {/* Team + spread */}
+      <div className="w-36 shrink-0">
+        <span className="text-xs font-bold text-white">{team}</span>
+        {spreadLabel && (
+          <span className={`ml-1.5 text-xs font-mono ${isFav ? 'text-win' : 'text-muted'}`}>
+            {spreadLabel}
+          </span>
+        )}
       </div>
+
+      {/* Divider */}
+      <span className="shrink-0 text-border">·</span>
+
+      {/* Pickers inline */}
       {pickers.length > 0 ? (
-        <div className={`flex flex-wrap gap-1 ${side === 'home' ? 'justify-end' : ''}`}>
+        <div className="flex flex-wrap gap-1.5">
           {pickers.map(p => (
-            <span key={p} className="text-xs text-accent bg-accent/10 border border-accent/20 rounded-full px-2 py-0.5">
-              {p}
+            <span
+              key={p.name}
+              className="inline-flex items-center gap-1 text-xs rounded border border-accent/25 bg-accent/10 px-2 py-0.5"
+              title={`Ranked #${p.rank} of ${p.total} picks`}
+            >
+              <span className="font-medium text-white">{p.name}</span>
+              <span className="font-mono font-bold text-accent">#{p.rank}</span>
             </span>
           ))}
         </div>
