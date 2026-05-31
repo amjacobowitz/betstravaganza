@@ -61,7 +61,15 @@ export default async function DraftPage({
   const currentPickIndex = bz.current_pick_index ?? 0
   const currentUserId = computeCurrentPicker(draftOrder, currentPickIndex, bz.round_count ?? 11)
 
-  const playerStatuses = (allUsers ?? []).map(u => {
+  const usersInDraftOrder = [...(allUsers ?? [])].sort((a, b) => {
+    const ai = draftOrder.indexOf(a.id)
+    const bi = draftOrder.indexOf(b.id)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+
+  const playerStatuses = usersInDraftOrder.map(u => {
     const playerPicks = allPicks.filter(p => p.userId === u.id)
     const validation = validateDraftTurn({
       userId: u.id,
