@@ -698,7 +698,7 @@ async function run() {
         sport:             'Hockey',
         category:          'optional',
         bet_type:          'odds',
-        start_time_et:     new Date(`${DATE_ET}T00:00:00Z`).toISOString(),
+        start_time_et:     nhlFinalTime.toISOString(),
         streaming_info:    'ABC / ESPN+ — T-Mobile Arena, Las Vegas (Hurricanes lead 2-0)',
         notes:             'Series tied 2-0 Hurricanes. Game 3 first on VGK home ice.',
       }).select().single()

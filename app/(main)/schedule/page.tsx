@@ -271,13 +271,13 @@ export default async function SchedulePage() {
                       </div>
                     )}
 
-                    {/* Draft event: options grid */}
+                    {/* Draft event: only show drafted options */}
                     {!item.isSlate && eventPicks && (
                       <div className="flex flex-col gap-1.5">
-                        {eventPicks.allOptions.length === 0 && (
-                          <p className="text-xs text-muted/50 italic">No options</p>
+                        {eventPicks.filledOptions.length === 0 && (
+                          <p className="text-xs text-muted/50 italic">No picks yet</p>
                         )}
-                        {eventPicks.allOptions.map(opt => (
+                        {eventPicks.filledOptions.map(opt => (
                           <div
                             key={opt.label}
                             className="flex items-center justify-between gap-2 rounded-lg bg-surface-2/60 border border-border/40 px-3 py-2"
@@ -290,17 +290,13 @@ export default async function SchedulePage() {
                                 </span>
                               )}
                             </div>
-                            {opt.pickers.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 justify-end">
-                                {opt.pickers.map(p => (
-                                  <span key={p} className="text-xs text-accent bg-accent/10 border border-accent/20 rounded-full px-2 py-0.5">
-                                    {p}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted/40 italic">open</span>
-                            )}
+                            <div className="flex flex-wrap gap-1 justify-end">
+                              {opt.pickers.map(p => (
+                                <span key={p} className="text-xs text-accent bg-accent/10 border border-accent/20 rounded-full px-2 py-0.5">
+                                  {p}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         ))}
                       </div>
