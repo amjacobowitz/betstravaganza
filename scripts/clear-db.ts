@@ -37,8 +37,8 @@ const admin = createClient(url, key, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-// Auth users must be deleted via the admin API — list and delete each one
-async function clearAuthUsers() {
+// Auth users must be deleted via the admin API — preserve the admin account
+async function clearAuthUsers(preserveEmail?: string) {
   let page = 1
   let deleted = 0
   while (true) {
@@ -46,6 +46,7 @@ async function clearAuthUsers() {
     if (error) throw error
     if (!data.users.length) break
     for (const u of data.users) {
+      if (preserveEmail && u.email === preserveEmail) continue
       await admin.auth.admin.deleteUser(u.id)
       deleted++
     }
@@ -81,10 +82,11 @@ async function run() {
     }
   }
 
-  // Clear auth.users (Supabase auth — separate from public.users)
+  // Clear auth.users — preserve the admin account
+  const adminEmail = process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL
   process.stdout.write('  Deleting auth users...')
-  const deleted = await clearAuthUsers()
-  console.log(` ✓  ${deleted} auth user(s) deleted`)
+  const deleted = await clearAuthUsers(adminEmail)
+  console.log(` ✓  ${deleted} auth user(s) deleted${adminEmail ? ` (preserved ${adminEmail})` : ''}`)
 
   console.log('\n✓  Database cleared.')
 }

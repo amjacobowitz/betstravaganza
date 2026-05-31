@@ -87,11 +87,15 @@ async function run() {
   console.log('Resolving users...')
   const { data: authList } = await admin.auth.admin.listUsers()
 
-  // Admin user (player 0) — must already exist
-  const adminAuthUser = authList?.users.find(u => u.email === adminEmail)
+  // Admin user (player 0) — reuse existing or create for dev
+  let adminAuthUser = authList?.users.find(u => u.email === adminEmail)
   if (!adminAuthUser) {
-    console.error(`  ❌  Admin user ${adminEmail} not found in auth. Sign up first.`)
-    process.exit(1)
+    console.log(`  ⚠  Admin user ${adminEmail} not found — creating for dev (password: DevAdmin123!)`)
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email: adminEmail, password: 'DevAdmin123!', email_confirm: true,
+    })
+    if (createErr) { console.error(`  ❌  Cannot create admin user: ${createErr.message}`); process.exit(1) }
+    adminAuthUser = created.user!
   }
   const adminId = adminAuthUser.id
   console.log(`  ✓  admin ${adminEmail}`)
@@ -148,13 +152,13 @@ async function run() {
     name:                  'Betstravaganza 2026',
     status:                'draft',
     player_count:          3,
-    round_count:           3,
+    round_count:           6,   // 2 required + 4 optional picks per player
     stake_amount:          100,
-    starting_bankroll:     300,
+    starting_bankroll:     600,
     confidence_multiplier: 3,
     draft_order:           userIds,
     current_round:         1,
-    current_pick_index:    0,
+    current_pick_index:    12,  // rounds 1-4 are pre-filled; rounds 5-6 are live
     start_datetime:        BZ_START,
     end_datetime:          BZ_END,
   }).select().single())
@@ -162,10 +166,14 @@ async function run() {
   const bzId = (bz as any).id as string
 
   // ── 4. Events ───────────────────────────────────────────────────────────
+  // 2 required: Kentucky Derby, US Open Golf
+  // 4 optional (all head-to-head → CLASHes):
+  //   NBA Finals, Yankees @ Red Sox, Strikeout Props, Tennis Final
 
   console.log('\nCreating events...')
 
   const eventDefs = [
+    // ── required ──────────────────────────────────────────────────────────
     {
       name: 'Kentucky Derby',
       sport: 'Horse Racing',
@@ -176,12 +184,31 @@ async function run() {
       notes: null,
     },
     {
+      name: 'US Open Golf',
+      sport: 'Golf',
+      category: 'required',
+      bet_type: 'odds',
+      start_time_et: gameTime(14, 0),
+      streaming_info: 'Peacock / NBC',
+      notes: null,
+    },
+    // ── optional (head-to-head — CLASH candidates) ────────────────────────
+    {
       name: 'NBA Finals Game 3',
       sport: 'Basketball',
-      category: 'required',
+      category: 'optional',
       bet_type: 'spread',
       start_time_et: gameTime(20, 0),
       streaming_info: 'ABC',
+      notes: null,
+    },
+    {
+      name: 'Yankees @ Red Sox',
+      sport: 'Baseball',
+      category: 'optional',
+      bet_type: 'odds',
+      start_time_et: gameTime(13, 5),
+      streaming_info: 'ESPN',
       notes: null,
     },
     {
@@ -191,24 +218,15 @@ async function run() {
       bet_type: 'odds',
       start_time_et: gameTime(13, 5),
       streaming_info: null,
-      notes: 'Total Ks by starting pitchers',
+      notes: 'Total Ks by both starting pitchers combined',
     },
     {
-      name: 'World Cup Qualifier: USMNT vs Mexico',
-      sport: 'Soccer',
-      category: 'optional',
-      bet_type: 'odds',
-      start_time_et: gameTime(15, 0),
-      streaming_info: 'Peacock',
-      notes: null,
-    },
-    {
-      name: 'US Open Women\'s Semifinal',
+      name: 'French Open Women\'s Final',
       sport: 'Tennis',
       category: 'optional',
       bet_type: 'no_odds',
-      start_time_et: gameTime(14, 0),
-      streaming_info: 'ESPN',
+      start_time_et: gameTime(10, 0),
+      streaming_info: 'NBC Sports',
       notes: null,
     },
   ]
@@ -223,48 +241,58 @@ async function run() {
   }
 
   // ── 5. Bet options ──────────────────────────────────────────────────────
+  // Required events: max_drafts=1 (each horse/golfer can only be drafted once)
+  // Optional events: max_drafts=2 (both sides can be drafted, enabling CLASHes)
 
   console.log('\nCreating bet options...')
 
   const betOptionDefs: { eventIdx: number; options: { label: string; odds: number | null; max_drafts?: number }[] }[] = [
     {
-      eventIdx: 0, // Kentucky Derby
+      eventIdx: 0, // Kentucky Derby — required, max_drafts=1 per horse
       options: [
-        { label: 'Firestorm', odds: 450 },
-        { label: 'Desert Wind', odds: 280 },
-        { label: 'Lucky Luna', odds: 600 },
-        { label: 'Blaze Runner', odds: 180 },
+        { label: 'Firestorm',    odds: 450  },
+        { label: 'Desert Wind',  odds: 280  },
+        { label: 'Lucky Luna',   odds: 600  },
+        { label: 'Blaze Runner', odds: 180  },
         { label: 'Silver Arrow', odds: 1200 },
-        { label: 'Thunder Bolt', odds: 320 },
+        { label: 'Thunder Bolt', odds: 320  },
       ],
     },
     {
-      eventIdx: 1, // NBA Finals
+      eventIdx: 1, // US Open Golf — required, max_drafts=1 per golfer
       options: [
-        { label: 'Celtics -5.5', odds: -110 },
-        { label: 'Heat +5.5', odds: -110 },
+        { label: 'Scottie Scheffler', odds: -120 },
+        { label: 'Rory McIlroy',      odds:  200 },
+        { label: 'Xander Schauffele', odds:  350 },
+        { label: 'Jon Rahm',          odds:  500 },
       ],
     },
     {
-      eventIdx: 2, // Strikeout Props
+      eventIdx: 2, // NBA Finals — optional, max_drafts=2 (both sides draftable)
       options: [
-        { label: 'Over 14.5 Ks', odds: -115 },
-        { label: 'Under 14.5 Ks', odds: -105 },
+        { label: 'Celtics -5.5', odds: -110, max_drafts: 2 },
+        { label: 'Heat +5.5',    odds: -110, max_drafts: 2 },
       ],
     },
     {
-      eventIdx: 3, // Soccer USMNT
+      eventIdx: 3, // Yankees @ Red Sox — optional, max_drafts=2
       options: [
-        { label: 'USMNT Win', odds: 200 },
-        { label: 'Draw', odds: 220 },
-        { label: 'Mexico Win', odds: 130 },
+        { label: 'Yankees Win', odds: -130, max_drafts: 2 },
+        { label: 'Red Sox Win', odds:  110, max_drafts: 2 },
       ],
     },
     {
-      eventIdx: 4, // Tennis — no_odds
+      eventIdx: 4, // Strikeout Props — optional, max_drafts=2
       options: [
-        { label: 'Iga Swiatek', odds: null },
-        { label: 'Aryna Sabalenka', odds: null },
+        { label: 'Over 14.5 Ks',  odds: -115, max_drafts: 2 },
+        { label: 'Under 14.5 Ks', odds: -105, max_drafts: 2 },
+      ],
+    },
+    {
+      eventIdx: 5, // French Open — optional, no_odds, max_drafts=2
+      options: [
+        { label: 'Iga Swiatek',    odds: null, max_drafts: 2 },
+        { label: 'Aryna Sabalenka', odds: null, max_drafts: 2 },
       ],
     },
   ]
@@ -273,10 +301,10 @@ async function run() {
   for (const def of betOptionDefs) {
     for (const opt of def.options) {
       const o = await ok(`  option: ${opt.label}`, await admin.from('bet_options').insert({
-        event_id:   events[def.eventIdx].id,
-        label:      opt.label,
-        odds:       opt.odds,
-        max_drafts: opt.max_drafts ?? 1,
+        event_id:    events[def.eventIdx].id,
+        label:       opt.label,
+        odds:        opt.odds,
+        max_drafts:  opt.max_drafts ?? 1,
         odds_source: 'manual',
       }).select().single())
       allOptions.push({ ...(o as any), eventIdx: def.eventIdx })
@@ -284,44 +312,59 @@ async function run() {
   }
 
   // ── 6. Draft picks ──────────────────────────────────────────────────────
-  // 3 rounds, 3 players: snake draft
-  // Round 1: Alice → Bob → Charlie
-  // Round 2: Charlie → Bob → Alice
-  // Round 3: Alice → Bob → Charlie
+  // 6 rounds, 3 players, snake draft — rounds 1-4 pre-filled (idx 0-11)
+  // current_pick_index=12, so R5 (Aaron) is next on the clock
+  //
+  // Snake order:
+  //   R1 fwd (0,1,2):  Aaron, Bob, Charlie
+  //   R2 rev (3,4,5):  Charlie, Bob, Aaron
+  //   R3 fwd (6,7,8):  Aaron, Bob, Charlie
+  //   R4 rev (9,10,11): Charlie, Bob, Aaron
+  //   R5 fwd (12,13,14): Aaron, Bob, Charlie  ← not seeded; draft live from here
+  //   R6 rev (15,16,17): Charlie, Bob, Aaron   ← not seeded
+  //
+  // CLASHes built into seeded picks:
+  //   • NBA Finals: Aaron (Celtics) vs Bob (Heat)
+  //   • Yankees@RedSox: Aaron (Yankees) vs Charlie (Red Sox)
+  //   • Yankees@RedSox: Bob (Yankees) vs Charlie (Red Sox)
 
-  console.log('\nCreating draft picks...')
+  console.log('\nCreating draft picks (rounds 1-4)...')
 
-  // Helper: get options for an event
   function optionsFor(eventIdx: number) {
-    return allOptions.filter(o => o.eventIdx === eventIdx)
+    return allOptions.filter((o: any) => o.eventIdx === eventIdx)
   }
 
-  // Alice picks: Derby (Firestorm), NBA (Celtics), Soccer (USMNT)
-  // Bob picks: Derby (Desert Wind), Strikeout (Over), Tennis (Swiatek)
-  // Charlie picks: Derby (Blaze Runner), NBA (Heat), Soccer (Draw)
+  function opt(eventIdx: number, label: string) {
+    const o = optionsFor(eventIdx).find((o: any) => o.label === label)
+    if (!o) throw new Error(`Option not found: [event ${eventIdx}] "${label}"`)
+    return o
+  }
 
   const draftPicks = [
-    // Round 1: Alice, Bob, Charlie
-    { userId: userIds[0], option: optionsFor(0).find((o:any) => o.label === 'Firestorm')!,      round: 1, idx: 0 },
-    { userId: userIds[1], option: optionsFor(0).find((o:any) => o.label === 'Desert Wind')!,    round: 1, idx: 1 },
-    { userId: userIds[2], option: optionsFor(0).find((o:any) => o.label === 'Blaze Runner')!,   round: 1, idx: 2 },
-    // Round 2: Charlie, Bob, Alice
-    { userId: userIds[2], option: optionsFor(1).find((o:any) => o.label === 'Heat +5.5')!,      round: 2, idx: 3 },
-    { userId: userIds[1], option: optionsFor(2).find((o:any) => o.label === 'Over 14.5 Ks')!,  round: 2, idx: 4 },
-    { userId: userIds[0], option: optionsFor(1).find((o:any) => o.label === 'Celtics -5.5')!,  round: 2, idx: 5 },
-    // Round 3: Alice, Bob, Charlie
-    { userId: userIds[0], option: optionsFor(3).find((o:any) => o.label === 'USMNT Win')!,     round: 3, idx: 6 },
-    { userId: userIds[1], option: optionsFor(4).find((o:any) => o.label === 'Iga Swiatek')!,   round: 3, idx: 7 },
-    { userId: userIds[2], option: optionsFor(3).find((o:any) => o.label === 'Draw')!,          round: 3, idx: 8 },
+    // R1 fwd: Aaron→Derby, Bob→Derby, Charlie→Derby
+    { userId: userIds[0], option: opt(0, 'Firestorm'),    round: 1, idx: 0  },
+    { userId: userIds[1], option: opt(0, 'Desert Wind'),  round: 1, idx: 1  },
+    { userId: userIds[2], option: opt(0, 'Blaze Runner'), round: 1, idx: 2  },
+    // R2 rev: Charlie→Golf, Bob→Golf, Aaron→Golf
+    { userId: userIds[2], option: opt(1, 'Xander Schauffele'), round: 2, idx: 3  },
+    { userId: userIds[1], option: opt(1, 'Rory McIlroy'),      round: 2, idx: 4  },
+    { userId: userIds[0], option: opt(1, 'Scottie Scheffler'), round: 2, idx: 5  },
+    // R3 fwd: Aaron→NBA Celtics, Bob→NBA Heat [CLASH!], Charlie→Red Sox Win
+    { userId: userIds[0], option: opt(2, 'Celtics -5.5'), round: 3, idx: 6  },
+    { userId: userIds[1], option: opt(2, 'Heat +5.5'),    round: 3, idx: 7  },
+    { userId: userIds[2], option: opt(3, 'Red Sox Win'),  round: 3, idx: 8  },
+    // R4 rev: Charlie→Strikeout Over, Bob→Yankees Win [CLASH!], Aaron→Yankees Win [CLASH!]
+    { userId: userIds[2], option: opt(4, 'Over 14.5 Ks'), round: 4, idx: 9  },
+    { userId: userIds[1], option: opt(3, 'Yankees Win'),  round: 4, idx: 10 },
+    { userId: userIds[0], option: opt(3, 'Yankees Win'),  round: 4, idx: 11 },
   ]
 
   for (const dp of draftPicks) {
-    if (!dp.option) { console.error('  ❌  Could not find bet option for draft pick'); continue }
-    await ok(`  draft pick [r${dp.round}] user ${dp.userId.slice(0,8)} → ${dp.option.label}`,
+    await ok(`  draft pick [r${dp.round}] user ${dp.userId.slice(0,8)} → ${(dp.option as any).label}`,
       await admin.from('draft_picks').insert({
         betstravaganza_id: bzId,
         user_id:           dp.userId,
-        bet_option_id:     dp.option.id,
+        bet_option_id:     (dp.option as any).id,
         round_number:      dp.round,
         pick_index:        dp.idx,
       }).select().single()
@@ -352,36 +395,33 @@ async function run() {
   }
 
   // ── 8. Slate picks ──────────────────────────────────────────────────────
-  // Each player picks all 5 games with confidence ranks 5 (most) to 1 (least)
+  // Each player picks all 5 games (rank 5 = most confident, 1 = least)
 
   console.log('\nCreating slate picks...')
 
-  // Alice picks (rank 5 = most confident)
-  const alicePicks = [
+  const adminSlatePicks = [
     { gameIdx: 0, team: 'away', rank: 5 }, // Yankees (most confident)
     { gameIdx: 1, team: 'away', rank: 4 }, // Dodgers
     { gameIdx: 2, team: 'home', rank: 3 }, // Cardinals
     { gameIdx: 3, team: 'away', rank: 2 }, // Braves
     { gameIdx: 4, team: 'home', rank: 1 }, // Rangers (least confident)
   ]
-  // Bob picks — opposing some of Alice's to create clashes
-  const bobPicks = [
-    { gameIdx: 0, team: 'home', rank: 5 }, // Red Sox (CLASH with Alice)
+  const bobSlatePicks = [
+    { gameIdx: 0, team: 'home', rank: 5 }, // Red Sox (CLASH with admin)
     { gameIdx: 1, team: 'away', rank: 4 }, // Dodgers
     { gameIdx: 2, team: 'away', rank: 3 }, // Cubs
-    { gameIdx: 3, team: 'home', rank: 2 }, // Mets (CLASH with Alice)
+    { gameIdx: 3, team: 'home', rank: 2 }, // Mets (CLASH with admin)
     { gameIdx: 4, team: 'away', rank: 1 }, // Astros
   ]
-  // Charlie picks
-  const charliePicks = [
+  const charlieSlatePicks = [
     { gameIdx: 0, team: 'away', rank: 3 }, // Yankees
-    { gameIdx: 1, team: 'home', rank: 5 }, // Giants (CLASH with Alice/Bob)
+    { gameIdx: 1, team: 'home', rank: 5 }, // Giants (CLASH with admin/Bob)
     { gameIdx: 2, team: 'home', rank: 4 }, // Cardinals
     { gameIdx: 3, team: 'away', rank: 2 }, // Braves
     { gameIdx: 4, team: 'home', rank: 1 }, // Rangers
   ]
 
-  async function insertSlatePicks(userId: string, picks: typeof alicePicks) {
+  async function insertSlatePicks(userId: string, picks: typeof adminSlatePicks) {
     for (const p of picks) {
       await ok(`  slate pick user ${userId.slice(0,8)} game ${p.gameIdx} → ${p.team} rank ${p.rank}`,
         await admin.from('slate_picks').insert({
@@ -395,9 +435,9 @@ async function run() {
     }
   }
 
-  await insertSlatePicks(userIds[0], alicePicks)
-  await insertSlatePicks(userIds[1], bobPicks)
-  await insertSlatePicks(userIds[2], charliePicks)
+  await insertSlatePicks(userIds[0], adminSlatePicks)
+  await insertSlatePicks(userIds[1], bobSlatePicks)
+  await insertSlatePicks(userIds[2], charlieSlatePicks)
 
   console.log('\n✅  Seed complete!')
   console.log(`\n   Betstravaganza ID: ${bzId}`)
