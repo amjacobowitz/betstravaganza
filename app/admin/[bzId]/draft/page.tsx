@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
-import { getActive } from '@/lib/db/betstravaganza'
+import { notFound } from 'next/navigation'
+import { getById } from '@/lib/db/betstravaganza'
 import { getDraftState } from '@/lib/db/draft'
 import { getEventsWithOptions } from '@/lib/db/events'
 import { createClient } from '@/lib/supabase/server'
@@ -7,19 +7,26 @@ import { DraftBoard } from '@/components/admin/DraftBoard'
 import { validateDraftTurn, isClashPick } from '@/lib/scoring'
 import type { DraftPick, BetOption, ScoringEvent } from '@/lib/scoring/types'
 
-export default async function DraftPage() {
-  const bz = await getActive()
-  if (!bz) redirect('/admin/setup')
+export default async function DraftPage({
+  params,
+}: {
+  params: Promise<{ bzId: string }>
+}) {
+  const { bzId } = await params
+  const bz = await getById(bzId)
+  if (!bz) notFound()
 
-  const [{ picks: rawPicks, users }, events] = await Promise.all([
+  const [{ picks: rawPicks, users }, events, supabase] = await Promise.all([
     getDraftState(bz.id),
     getEventsWithOptions(bz.id),
+    createClient(),
   ])
 
-  const supabase = await createClient()
-  const { data: allUsers } = await supabase.from('users').select('id, name, team_name').order('name')
+  const { data: allUsers } = await supabase
+    .from('users')
+    .select('id, name, team_name')
+    .order('name')
 
-  // Normalise to scoring types
   const betOptions: BetOption[] = events.flatMap(e =>
     ((e as any).bet_options ?? []).map((o: any) => ({
       id: o.id,
@@ -49,7 +56,6 @@ export default async function DraftPage() {
 
   const requiredEventIds = scoringEvents.filter(e => e.category === 'required').map(e => e.id)
 
-  // Compute per-player status for the sidebar
   const draftOrder: string[] = bz.draft_order ?? []
   const totalPicks = (bz.player_count ?? 11) * (bz.round_count ?? 11)
   const currentPickIndex = bz.current_pick_index ?? 0
@@ -67,14 +73,9 @@ export default async function DraftPage() {
       requiredEventIds,
       totalRounds: bz.round_count ?? 11,
     })
-
     const requiredSatisfied = requiredEventIds.filter(rid =>
-      playerPicks.some(p => {
-        const opt = betOptions.find(o => o.id === p.betOptionId)
-        return opt?.eventId === rid
-      })
+      playerPicks.some(p => betOptions.find(o => o.id === p.betOptionId)?.eventId === rid)
     )
-
     const clashCount = playerPicks.filter(p =>
       isClashPick(p, allPicks, betOptions, scoringEvents)
     ).length
@@ -115,9 +116,5 @@ function computeCurrentPicker(draftOrder: string[], pickIndex: number, roundCoun
   const n = draftOrder.length
   const round = Math.floor(pickIndex / n)
   const posInRound = pickIndex % n
-  if (round % 2 === 0) {
-    return draftOrder[posInRound] ?? null
-  } else {
-    return draftOrder[n - 1 - posInRound] ?? null
-  }
+  return round % 2 === 0 ? (draftOrder[posInRound] ?? null) : (draftOrder[n - 1 - posInRound] ?? null)
 }

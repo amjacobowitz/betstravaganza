@@ -99,7 +99,7 @@ export async function recordPick(input: {
     .update({ current_pick_index: input.pickIndex + 1 })
     .eq('id', input.betstravaganzaId)
 
-  revalidatePath('/admin/draft')
+  revalidatePath('/admin', 'layout')
   revalidatePath('/leaderboard')
   return { ok: true }
 }
@@ -124,6 +124,6 @@ export async function undoLastPick(betstravaganzaId: string) {
   await supabase.from('draft_picks').delete().eq('id', lastPick.id)
   await supabase.from('betstravaganza').update({ current_pick_index: lastPick.pick_index }).eq('id', betstravaganzaId)
 
-  revalidatePath('/admin/draft')
+  revalidatePath('/admin', 'layout')
   return { ok: true }
 }

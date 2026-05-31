@@ -13,6 +13,7 @@ const mainLinks = [
   { href: '/leaderboard', label: '🏆 Leaderboard' },
   { href: '/my-picks',    label: '🎯 My Picks'    },
   { href: '/schedule',    label: '📅 Schedule'     },
+  { href: '/profile',     label: '👤 Profile'      },
 ]
 
 export function NavBar({ isAdmin, userName }: NavBarProps) {

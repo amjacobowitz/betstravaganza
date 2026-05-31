@@ -20,7 +20,7 @@ export function SetupForm() {
       setError(result.error)
       setLoading(false)
     } else {
-      router.refresh()
+      router.push(`/admin/${result.data!.id}`)
     }
   }
 

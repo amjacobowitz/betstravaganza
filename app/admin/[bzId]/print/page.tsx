@@ -1,12 +1,17 @@
-import { redirect } from 'next/navigation'
-import { getActive } from '@/lib/db/betstravaganza'
+import { notFound } from 'next/navigation'
+import { getById } from '@/lib/db/betstravaganza'
 import { getEventsWithOptions } from '@/lib/db/events'
 import { createClient } from '@/lib/supabase/server'
 import { PrintPDFs } from '@/components/admin/PrintPDFs'
 
-export default async function PrintPage() {
-  const bz = await getActive()
-  if (!bz) redirect('/admin/setup')
+export default async function PrintPage({
+  params,
+}: {
+  params: Promise<{ bzId: string }>
+}) {
+  const { bzId } = await params
+  const bz = await getById(bzId)
+  if (!bz) notFound()
 
   const supabase = await createClient()
   const [events, { data: slateGames }] = await Promise.all([
@@ -16,7 +21,7 @@ export default async function PrintPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-white">Print</h1>
+      <h2 className="text-xl font-bold text-white">Print</h2>
       <PrintPDFs
         bzName={bz.name}
         events={events as any}

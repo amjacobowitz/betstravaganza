@@ -34,7 +34,7 @@ export async function upsertEvent(formData: FormData) {
       : await supabase.from('events').insert(payload).select().single()
 
     if (error) return { error: error.message }
-    revalidatePath('/admin/events')
+    revalidatePath('/admin', 'layout')
     return { data }
   } catch (e: any) {
     return { error: e.message }
@@ -46,7 +46,7 @@ export async function deleteEvent(eventId: string) {
     const supabase = await requireAdmin()
     const { error } = await supabase.from('events').delete().eq('id', eventId)
     if (error) return { error: error.message }
-    revalidatePath('/admin/events')
+    revalidatePath('/admin', 'layout')
     return { ok: true }
   } catch (e: any) {
     return { error: e.message }
@@ -71,7 +71,7 @@ export async function upsertBetOption(formData: FormData) {
       : await supabase.from('bet_options').insert(payload).select().single()
 
     if (error) return { error: error.message }
-    revalidatePath('/admin/events')
+    revalidatePath('/admin', 'layout')
     return { data }
   } catch (e: any) {
     return { error: e.message }
@@ -83,7 +83,7 @@ export async function deleteBetOption(optionId: string) {
     const supabase = await requireAdmin()
     const { error } = await supabase.from('bet_options').delete().eq('id', optionId)
     if (error) return { error: error.message }
-    revalidatePath('/admin/events')
+    revalidatePath('/admin', 'layout')
     return { ok: true }
   } catch (e: any) {
     return { error: e.message }
@@ -111,7 +111,7 @@ export async function upsertSlateGame(formData: FormData) {
       : await supabase.from('slate_games').insert(payload).select().single()
 
     if (error) return { error: error.message }
-    revalidatePath('/admin/events')
+    revalidatePath('/admin', 'layout')
     return { data }
   } catch (e: any) {
     return { error: e.message }

@@ -10,6 +10,13 @@ export default async function UsersPage() {
     .select('id, name, team_name, email, is_admin, created_at')
     .order('name')
 
+  async function toggleAdmin(formData: FormData) {
+    'use server'
+    const userId = formData.get('userId') as string
+    const isAdmin = formData.get('isAdmin') === 'true'
+    await setUserAdmin(userId, !isAdmin)
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-white">Users</h1>
@@ -26,10 +33,9 @@ export default async function UsersPage() {
                 <div className="text-xs text-muted">{user.name} · {user.email}</div>
               </div>
 
-              <form action={async () => {
-                'use server'
-                await setUserAdmin(user.id, !user.is_admin)
-              }}>
+              <form action={toggleAdmin}>
+                <input type="hidden" name="userId" value={user.id} />
+                <input type="hidden" name="isAdmin" value={String(user.is_admin)} />
                 <button
                   type="submit"
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${

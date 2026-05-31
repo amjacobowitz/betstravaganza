@@ -44,8 +44,7 @@ export async function updateDraftOrder(betstravaganzaId: string, userIds: string
     .eq('id', betstravaganzaId)
 
   if (error) return { error: error.message }
-  revalidatePath('/admin/setup')
-  revalidatePath('/admin/draft')
+  revalidatePath('/admin', 'layout')
   return { ok: true }
 }
 
@@ -69,7 +68,7 @@ export async function updateBetstravaganzaDates(betstravaganzaId: string, formDa
     .eq('id', betstravaganzaId)
 
   if (error) return { error: error.message }
-  revalidatePath('/admin/setup')
+  revalidatePath('/admin', 'layout')
   revalidatePath('/my-picks')
   return { ok: true }
 }

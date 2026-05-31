@@ -1,12 +1,17 @@
-import { redirect } from 'next/navigation'
-import { getActive } from '@/lib/db/betstravaganza'
+import { notFound } from 'next/navigation'
+import { getById } from '@/lib/db/betstravaganza'
 import { getEventsWithOptions } from '@/lib/db/events'
 import { createClient } from '@/lib/supabase/server'
 import { ResultsForm } from '@/components/admin/ResultsForm'
 
-export default async function ResultsPage() {
-  const bz = await getActive()
-  if (!bz) redirect('/admin/setup')
+export default async function ResultsPage({
+  params,
+}: {
+  params: Promise<{ bzId: string }>
+}) {
+  const { bzId } = await params
+  const bz = await getById(bzId)
+  if (!bz) notFound()
 
   const supabase = await createClient()
   const rawEvents = await getEventsWithOptions(bz.id)
@@ -24,7 +29,6 @@ export default async function ResultsPage() {
     ...e,
     result: results?.find((r: any) => r.event_id === e.id) ?? null,
   }))
-
   const slateGames = (rawSlateGames ?? []).map((g: any) => ({
     ...g,
     result: slateResults?.find((r: any) => r.slate_game_id === g.id) ?? null,
@@ -32,7 +36,7 @@ export default async function ResultsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-white">Results</h1>
+      <h2 className="text-xl font-bold text-white">Results</h2>
       <ResultsForm events={events} slateGames={slateGames} />
     </div>
   )

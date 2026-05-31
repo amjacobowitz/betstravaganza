@@ -31,7 +31,7 @@ export async function upsertResult(formData: FormData) {
       .upsert(payload, { onConflict: 'event_id' })
 
     if (error) return { error: error.message }
-    revalidatePath('/admin/results')
+    revalidatePath('/admin', 'layout')
     revalidatePath('/leaderboard')
     return { ok: true }
   } catch (e: any) {
@@ -56,7 +56,7 @@ export async function upsertSlateResult(formData: FormData) {
       .upsert(payload, { onConflict: 'slate_game_id' })
 
     if (error) return { error: error.message }
-    revalidatePath('/admin/results')
+    revalidatePath('/admin', 'layout')
     revalidatePath('/leaderboard')
     return { ok: true }
   } catch (e: any) {

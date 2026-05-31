@@ -1,15 +1,19 @@
-import { redirect } from 'next/navigation'
-import { getActive } from '@/lib/db/betstravaganza'
+import { notFound } from 'next/navigation'
+import { getById } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
-export default async function SlatePage() {
-  const bz = await getActive()
-  if (!bz) redirect('/admin/setup')
+export default async function SlatePage({
+  params,
+}: {
+  params: Promise<{ bzId: string }>
+}) {
+  const { bzId } = await params
+  const bz = await getById(bzId)
+  if (!bz) notFound()
 
   const supabase = await createClient()
-
   const [{ data: users }, { data: slateGames }, { data: slatePicks }] = await Promise.all([
     supabase.from('users').select('id, name, team_name').order('name'),
     supabase.from('slate_games').select('id, away_team, home_team, sport_label, start_time_et').eq('betstravaganza_id', bz.id).order('sort_order'),
@@ -17,17 +21,24 @@ export default async function SlatePage() {
   ])
 
   const gameCount = slateGames?.length ?? 0
+  const submittedCount = (users ?? []).filter(u =>
+    (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length === gameCount && gameCount > 0
+  ).length
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Slate Submissions</h1>
-        <span className="text-sm text-muted">{gameCount} games</span>
+        <h2 className="text-xl font-bold text-white">Slate Submissions</h2>
+        <span className="text-sm text-muted">
+          {submittedCount}/{(users ?? []).length} submitted · {gameCount} games
+        </span>
       </div>
 
       {gameCount === 0 && (
         <Card>
-          <p className="text-muted text-sm text-center py-4">No slate games configured yet. Add them in Events.</p>
+          <p className="text-muted text-sm text-center py-4">
+            No slate games configured yet. Add them in Events.
+          </p>
         </Card>
       )}
 
@@ -49,11 +60,11 @@ export default async function SlatePage() {
                     <div className="text-xs text-muted">{user.name}</div>
                     {submittedAt && (
                       <div className="text-xs text-muted mt-1">
-                        Last update: {submittedAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}
+                        {submittedAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-1">
+                  <div>
                     {submitted ? (
                       <Badge variant="win">SUBMITTED</Badge>
                     ) : partial ? (
@@ -63,7 +74,6 @@ export default async function SlatePage() {
                     )}
                   </div>
                 </div>
-
                 {userPicks.length > 0 && (
                   <div className="mt-3 space-y-1">
                     {[...userPicks]

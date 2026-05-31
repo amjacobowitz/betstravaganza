@@ -1,5 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 
+export async function getAll() {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('betstravaganza')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
 export async function getActive() {
   const supabase = await createClient()
   const { data } = await supabase
