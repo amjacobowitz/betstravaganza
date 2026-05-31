@@ -143,9 +143,9 @@ function PickPool({
     })
   }
 
-  const allExpanded = collapsedEvents.size === 0
+  const allExpanded = groups.every(g => !collapsedEvents.has(g.event.id))
   function toggleAll() {
-    if (allExpanded) setCollapsedEvents(new Set(groups.map(g => g.event.id)))
+    if (allExpanded) setCollapsedEvents(new Set(events.map((e: any) => e.id)))
     else setCollapsedEvents(new Set())
   }
 
@@ -819,14 +819,6 @@ export function DraftBoard({
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {activeFilters.size > 0 && (
-                <button
-                  onClick={() => setActiveFilters(new Set())}
-                  className="h-7 rounded-lg border border-border/50 px-2.5 text-xs text-muted hover:text-white transition-colors"
-                >
-                  Clear
-                </button>
-              )}
               {([
                 { key: 'required',  label: 'Required',    color: 'bg-accent' },
                 { key: 'optional',  label: 'Optional',    color: 'bg-accent' },
@@ -864,6 +856,16 @@ export function DraftBoard({
                 ?
               </button>
             </div>
+            {activeFilters.size > 0 && (
+              <div>
+                <button
+                  onClick={() => setActiveFilters(new Set())}
+                  className="h-6 rounded-md border border-border/50 px-2.5 text-xs text-muted hover:text-white transition-colors"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
 
             {showLegend && (
               <div className="rounded-xl border border-border/50 bg-surface-2/40 px-4 py-3 space-y-3 text-xs">

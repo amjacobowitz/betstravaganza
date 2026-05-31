@@ -72,6 +72,8 @@ function SortableGameRow({
   confidenceMultiplier,
   locked,
   onPickTeam,
+  onMoveUp,
+  onMoveDown,
 }: {
   game: SlateGame
   rank: number
@@ -80,6 +82,8 @@ function SortableGameRow({
   confidenceMultiplier: number
   locked: boolean
   onPickTeam: (gameId: string, team: 'home' | 'away') => void
+  onMoveUp: () => void
+  onMoveDown: () => void
 }) {
   const {
     attributes,
@@ -109,19 +113,39 @@ function SortableGameRow({
       } ${isTop ? 'ring-1 ring-accent/30' : ''}`}
     >
       <div className="flex items-start gap-2">
-        {/* Drag handle */}
+        {/* Reorder controls: drag handle + up/down arrows */}
         {!locked && (
-          <button
-            {...attributes}
-            {...listeners}
-            className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-muted hover:text-white transition-colors p-1 -m-1 touch-none"
-            aria-label="Drag to reorder"
-            tabIndex={0}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M5 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm6-10a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-            </svg>
-          </button>
+          <div className="flex flex-col items-center gap-0.5 mt-0.5 shrink-0">
+            <button
+              onClick={onMoveUp}
+              disabled={isTop}
+              className="text-muted hover:text-white disabled:opacity-20 disabled:cursor-default transition-colors p-0.5"
+              aria-label="Move up"
+              tabIndex={0}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3l6 8H2z"/></svg>
+            </button>
+            <button
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted hover:text-white transition-colors p-0.5 touch-none"
+              aria-label="Drag to reorder"
+              tabIndex={0}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M5 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm6-10a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+              </svg>
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={isBottom}
+              className="text-muted hover:text-white disabled:opacity-20 disabled:cursor-default transition-colors p-0.5"
+              aria-label="Move down"
+              tabIndex={0}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 13L2 5h12z"/></svg>
+            </button>
+          </div>
         )}
 
         {/* Game info */}
@@ -250,6 +274,16 @@ export function SlatePicksForm({
     setSubmitted(false)
   }, [])
 
+  function handleMove(gameId: string, direction: 'up' | 'down') {
+    setGameOrder(prev => {
+      const idx = prev.indexOf(gameId)
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (newIdx < 0 || newIdx >= prev.length) return prev
+      return arrayMove(prev, idx, newIdx)
+    })
+    setSubmitted(false)
+  }
+
   async function handleSubmit() {
     if (!canSubmit) return
     setLoading(true)
@@ -289,7 +323,7 @@ export function SlatePicksForm({
       {/* Instructions */}
       {!locked && (
         <div className="flex items-center justify-between text-xs text-muted">
-          <span>Drag to rank confidence — <strong className="text-white">top = most confident</strong></span>
+          <span>Use arrows or drag to rank — <strong className="text-white">top = most confident</strong></span>
           <span className="text-accent font-mono font-semibold">
             Up to +${maxPotential} if all correct
           </span>
@@ -321,6 +355,8 @@ export function SlatePicksForm({
                 confidenceMultiplier={confidenceMultiplier}
                 locked={locked}
                 onPickTeam={handlePickTeam}
+                onMoveUp={() => handleMove(gId, 'up')}
+                onMoveDown={() => handleMove(gId, 'down')}
               />
             ))}
           </div>
