@@ -83,11 +83,12 @@ function PickPool({
         .map(p => allUsers.find(u => u.id === p.userId)?.team_name ?? '?')
       const eventOpts = betOptions.filter(oo => oo.eventId === o.eventId)
       const opposingOpt = eventOpts.length === 2 ? eventOpts.find(oo => oo.id !== o.id) : null
-      const clashAvailable = !!(
-        e.category === 'optional' && opposingOpt &&
-        allPicks.some(p => p.betOptionId === opposingOpt.id)
-      )
-      return { event: e, option: o, draftCount, isFull, draftedBy, clashAvailable }
+      const clashPickers: string[] = e.category === 'optional' && opposingOpt
+        ? allPicks
+            .filter(p => p.betOptionId === opposingOpt.id)
+            .map(p => allUsers.find(u => u.id === p.userId)?.team_name ?? '?')
+        : []
+      return { event: e, option: o, draftCount, isFull, draftedBy, clashPickers }
     })
   }), [events, betOptions, allPicks, allUsers])
 
@@ -143,7 +144,7 @@ function PickPool({
 
             {/* Option rows */}
             <div className="divide-y divide-border/30">
-              {rows.map(({ option, isFull, draftCount, draftedBy, clashAvailable }) => {
+              {rows.map(({ option, isFull, draftCount, draftedBy, clashPickers }) => {
                 const isSelected = selectedOptionId === option.id
                 const draftedByMe = allPicks.some(p => p.betOptionId === option.id && p.userId === selectedUserId)
                 const eventPickedElsewhere = !draftedByMe && myPickedEventIds.has(option.eventId)
@@ -166,10 +167,14 @@ function PickPool({
                         <span className={`font-medium text-sm ${unavailable ? 'line-through text-muted' : 'text-white'}`}>
                           {option.label}
                         </span>
-                        {clashAvailable && !isFull && <ClashBadge />}
+                        {clashPickers.length > 0 && !isFull && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-clash/30 bg-clash/20 px-2 py-0.5 text-xs font-semibold text-clash">
+                            ⚔️ {clashPickers.join(', ')} on other side
+                          </span>
+                        )}
                         {isFull && <Badge variant="default">FULL</Badge>}
                         {draftedByMe && <Badge variant="win">Picked</Badge>}
-                        {eventPickedElsewhere && <Badge variant="default">Event taken</Badge>}
+                        {eventPickedElsewhere && <Badge variant="default">Covered</Badge>}
                       </div>
                       {draftedBy.length > 0 && (
                         <div className="text-xs text-muted mt-0.5">{draftedBy.join(', ')}</div>
@@ -328,6 +333,15 @@ function DraftGrid({
                       )
                     }
 
+                    // Clash: only on optional events where another player picked the opposing option
+                    const eventOptions = betOptions.filter(o => o.eventId === pick.eventId)
+                    const clashWith = event?.category === 'optional'
+                      ? allPicks
+                          .filter(dp => dp.betOptionId !== pick.betOptionId && eventOptions.some(o => o.id === dp.betOptionId))
+                          .map(dp => allUsers.find(u => u.id === dp.userId)?.team_name ?? '?')
+                          .filter((v, i, a) => a.indexOf(v) === i)
+                      : []
+
                     return (
                       <td key={p.id} className="px-3 py-2 align-top">
                         {isConfirmingUndo ? (
@@ -353,6 +367,11 @@ function DraftGrid({
                                 <div className="text-xs text-muted mt-0.5 leading-tight">
                                   {sportEmoji(events.find(e => e.id === pick?.eventId)?.sport ?? '')} {event?.name}
                                 </div>
+                                {clashWith.length > 0 && (
+                                  <div className="mt-1 text-xs font-semibold text-clash leading-tight">
+                                    ⚔️ CLASH w/ {clashWith.join(', ')}
+                                  </div>
+                                )}
                               </div>
                               <button
                                 onClick={() => setConfirmUndoId(pick.id)}
@@ -552,6 +571,7 @@ export function DraftBoard({
   }, [currentUserId])
   const [filter, setFilter] = useState<'all' | 'required' | 'optional'>('all')
   const [search, setSearch] = useState('')
+  const [showLegend, setShowLegend] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -745,7 +765,85 @@ export function DraftBoard({
                 onChange={e => setSearch(e.target.value)}
                 className="h-7 rounded-lg bg-surface-2 border border-border px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-accent"
               />
+              <button
+                onClick={() => setShowLegend(v => !v)}
+                className={`ml-auto h-7 w-7 rounded-lg border text-xs font-semibold transition-colors flex items-center justify-center
+                  ${showLegend ? 'bg-accent text-black border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
+                title="Toggle legend"
+              >
+                ?
+              </button>
             </div>
+
+            {showLegend && (
+              <div className="rounded-xl border border-border/50 bg-surface-2/40 px-4 py-3 space-y-3 text-xs">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wider">Legend</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+                  {/* Dots */}
+                  <div className="space-y-1.5">
+                    <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Availability dot</p>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-white">Available — no picks yet</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-white">Partially taken — some slots filled</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-zinc-600 shrink-0" />
+                      <span className="text-white">Full — no slots left</span>
+                    </div>
+                  </div>
+
+                  {/* Badges */}
+                  <div className="space-y-1.5">
+                    <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Badges</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="win">Picked</Badge>
+                      <span className="text-white">Selected player already has this pick</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default">Covered</Badge>
+                      <span className="text-white">Player picked a different option from this event</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default">FULL</Badge>
+                      <span className="text-white">Max picks reached — unavailable</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="required">REQUIRED</Badge>
+                      <span className="text-white">Must pick one; one per player per event</span>
+                    </div>
+                  </div>
+
+                  {/* Clash */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Clash indicator</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-clash/30 bg-clash/20 px-2 py-0.5 font-semibold text-clash shrink-0">
+                        ⚔️ Team on other side
+                      </span>
+                      <span className="text-white">Another player picked the opposing option — picking this creates a clash</span>
+                    </div>
+                  </div>
+
+                  {/* Slot counter */}
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Event header</p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-emerald-500">0 / 4 slots taken</span>
+                      <span className="text-white">Total picks made across all options in this event</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-amber-400">2 / 4 slots taken</span>
+                      <span className="text-white">Some slots filled</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <PickPool
               events={events}
               betOptions={betOptions}

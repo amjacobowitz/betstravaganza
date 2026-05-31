@@ -1,4 +1,6 @@
-import type { OddsApiGame, OddsApiOutcome } from './client'
+import type { OddsApiOutcome } from './client'
+
+type TeamMatchable = { away_team: string; home_team: string; commence_time: string }
 
 // Maps our sport labels to The Odds API sport keys
 export const SPORT_API_KEYS: Record<string, string> = {
@@ -40,12 +42,12 @@ export function findOutcomeForLabel(label: string, outcomes: OddsApiOutcome[]): 
   )
 }
 
-export function matchGame(
+export function matchGame<T extends TeamMatchable>(
   ourAway: string,
   ourHome: string,
-  apiGames: OddsApiGame[],
+  apiGames: T[],
   referenceTime?: string, // slate game's start_time_et — used to prefer the closest date match
-): OddsApiGame | null {
+): T | null {
   const normAway = normalizeTeam(ourAway)
   const normHome = normalizeTeam(ourHome)
 

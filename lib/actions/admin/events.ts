@@ -104,6 +104,21 @@ export async function updateBetOptionOdds(betOptionId: string, newOdds: number, 
   }
 }
 
+export async function updateSlateGameSpread(slateGameId: string, newSpread: number, bzId: string) {
+  try {
+    const supabase = await requireAdmin()
+    const { error } = await supabase
+      .from('slate_games')
+      .update({ spread: newSpread })
+      .eq('id', slateGameId)
+    if (error) return { error: error.message }
+    revalidatePath(`/admin/${bzId}/events`)
+    return { ok: true }
+  } catch (e: any) {
+    return { error: e.message }
+  }
+}
+
 export async function upsertSlateGame(formData: FormData) {
   try {
     const supabase = await requireAdmin()

@@ -8,10 +8,10 @@ import { Card } from '@/components/ui/Card'
 import {
   upsertEvent, deleteEvent,
   upsertBetOption, deleteBetOption,
-  upsertSlateGame, updateBetOptionOdds,
+  upsertSlateGame, updateBetOptionOdds, updateSlateGameSpread,
 } from '@/lib/actions/admin/events'
 import { fetchOddsFromAPI } from '@/lib/actions/admin/fetch-odds'
-import type { ProposedOddsUpdate, UnmatchedEvent } from '@/lib/actions/admin/fetch-odds'
+import type { ProposedOddsUpdate, ProposedSpreadUpdate, UnmatchedEvent } from '@/lib/actions/admin/fetch-odds'
 import { SPORTS, sportEmoji } from '@/lib/utils/sports'
 import { toDatetimeLocalET } from '@/lib/utils/datetime'
 
@@ -223,19 +223,23 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
   const [oddsFetchError, setOddsFetchError] = useState<string | null>(null)
   const [oddsDone, setOddsDone] = useState(false)
   const [proposedOdds, setProposedOdds] = useState<ProposedOddsUpdate[]>([])
+  const [proposedSpreads, setProposedSpreads] = useState<ProposedSpreadUpdate[]>([])
   const [unmatchedOdds, setUnmatchedOdds] = useState<UnmatchedEvent[]>([])
   const [oddsSaving, setOddsSaving] = useState<Set<string>>(new Set())
+  const [spreadSaving, setSpreadSaving] = useState<Set<string>>(new Set())
 
   async function handleFetchOdds() {
     setOddsFetching(true)
     setOddsFetchError(null)
     setOddsDone(false)
     setProposedOdds([])
+    setProposedSpreads([])
     setUnmatchedOdds([])
     const res = await fetchOddsFromAPI(betstravaganzaId)
     if (res.error) setOddsFetchError(res.error)
     else {
       setProposedOdds(res.proposed)
+      setProposedSpreads(res.proposedSpreads)
       setUnmatchedOdds(res.unmatched)
       setOddsDone(true)
     }
@@ -250,14 +254,30 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
     setOddsSaving(prev => { const s = new Set(prev); s.delete(p.betOptionId); return s })
   }
 
+  async function handleSaveSpread(p: ProposedSpreadUpdate) {
+    setSpreadSaving(prev => new Set(prev).add(p.slateGameId))
+    const res = await updateSlateGameSpread(p.slateGameId, p.newSpread, betstravaganzaId)
+    if (res.error) setError(res.error)
+    else setProposedSpreads(prev => prev.filter(s => s.slateGameId !== p.slateGameId))
+    setSpreadSaving(prev => { const s = new Set(prev); s.delete(p.slateGameId); return s })
+  }
+
   async function handleSaveAllChanged() {
-    const changed = proposedOdds.filter(p => p.changed)
-    setOddsSaving(new Set(changed.map(p => p.betOptionId)))
-    for (const p of changed) {
+    const changedOdds = proposedOdds.filter(p => p.changed)
+    const changedSpreads = proposedSpreads.filter(p => p.changed)
+    setOddsSaving(new Set(changedOdds.map(p => p.betOptionId)))
+    setSpreadSaving(new Set(changedSpreads.map(p => p.slateGameId)))
+    for (const p of changedOdds) {
       const res = await updateBetOptionOdds(p.betOptionId, p.newOdds, betstravaganzaId)
       if (res.error) { setError(res.error); break }
       setProposedOdds(prev => prev.filter(o => o.betOptionId !== p.betOptionId))
       setOddsSaving(prev => { const s = new Set(prev); s.delete(p.betOptionId); return s })
+    }
+    for (const p of changedSpreads) {
+      const res = await updateSlateGameSpread(p.slateGameId, p.newSpread, betstravaganzaId)
+      if (res.error) { setError(res.error); break }
+      setProposedSpreads(prev => prev.filter(s => s.slateGameId !== p.slateGameId))
+      setSpreadSaving(prev => { const s = new Set(prev); s.delete(p.slateGameId); return s })
     }
   }
 
@@ -287,9 +307,148 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
   const events = initialEvents
   const slateGames = initialSlateGames
 
+  const totalChanged = proposedOdds.filter(p => p.changed).length + proposedSpreads.filter(p => p.changed).length
+
   return (
     <div className="space-y-4">
       {error && <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
+
+      {/* Fetch Odds — top-level, not tab-scoped */}
+      <div className="flex items-center gap-3">
+        <Button variant="secondary" size="sm" loading={oddsFetching} onClick={handleFetchOdds}>
+          ↓ Fetch Odds from API
+        </Button>
+        {oddsFetchError && <span className="text-xs text-danger">{oddsFetchError}</span>}
+      </div>
+
+      {/* Odds panel */}
+      {oddsDone && (
+        <Card className="space-y-4 border-accent/30">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">
+              {(() => {
+                const changed = proposedOdds.filter(p => p.changed).length + proposedSpreads.filter(p => p.changed).length
+                const unchanged = proposedOdds.filter(p => !p.changed).length + proposedSpreads.filter(p => !p.changed).length
+                const parts: string[] = []
+                if (changed > 0) parts.push(`${changed} changed`)
+                if (unchanged > 0) parts.push(`${unchanged} unchanged`)
+                if (unmatchedOdds.length > 0) parts.push(`${unmatchedOdds.length} not found`)
+                return `Odds from API — ${parts.length ? parts.join(', ') : 'no new odds found'}`
+              })()}
+            </h3>
+            <div className="flex gap-2">
+              {totalChanged > 0 && (
+                <Button size="sm" onClick={handleSaveAllChanged}
+                  loading={oddsSaving.size > 0 || spreadSaving.size > 0}>
+                  Save All Changed ({totalChanged})
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => {
+                setProposedOdds([]); setProposedSpreads([]); setUnmatchedOdds([]); setOddsDone(false)
+              }}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+
+          {/* Slate game spreads */}
+          {proposedSpreads.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">Slate Game Spreads</p>
+              {proposedSpreads.map(p => (
+                <div key={p.slateGameId} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${p.changed ? 'border-accent/30 bg-accent/5' : 'border-border/30 bg-surface-2/30'}`}>
+                  <div className="flex-1 text-sm">
+                    <span className="text-white font-medium">{p.gameName}</span>
+                    <span className="ml-3 font-mono text-xs text-muted">
+                      {p.currentSpread !== null ? (p.currentSpread > 0 ? `+${p.currentSpread}` : `${p.currentSpread}`) : '—'}
+                      {' → '}
+                      <span className={p.changed ? 'text-accent' : 'text-muted'}>
+                        {p.newSpread > 0 ? `+${p.newSpread}` : `${p.newSpread}`}
+                      </span>
+                    </span>
+                    {p.changed && <Badge variant="admin" className="ml-2">Changed</Badge>}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    {p.changed && (
+                      <Button size="sm" loading={spreadSaving.has(p.slateGameId)} onClick={() => handleSaveSpread(p)}>
+                        Save
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost"
+                      onClick={() => setProposedSpreads(prev => prev.filter(s => s.slateGameId !== p.slateGameId))}>
+                      Skip
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Group proposed bet-option odds by event */}
+          {Object.entries(
+            proposedOdds.reduce((acc, p) => {
+              if (!acc[p.eventId]) acc[p.eventId] = { name: p.eventName, items: [] }
+              acc[p.eventId].items.push(p)
+              return acc
+            }, {} as Record<string, { name: string; items: ProposedOddsUpdate[] }>)
+          ).map(([eventId, group]) => (
+            <div key={eventId} className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">{group.name}</p>
+              {group.items.map(p => (
+                <div key={p.betOptionId} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${p.changed ? 'border-accent/30 bg-accent/5' : 'border-border/30 bg-surface-2/30'}`}>
+                  <div className="flex-1 text-sm">
+                    <span className="text-white font-medium">{p.optionLabel}</span>
+                    <span className="ml-3 font-mono text-xs text-muted">
+                      {p.currentOdds !== null ? (p.currentOdds > 0 ? `+${p.currentOdds}` : `${p.currentOdds}`) : '—'}
+                      {' → '}
+                      <span className={p.changed ? 'text-accent' : 'text-muted'}>
+                        {p.newOdds > 0 ? `+${p.newOdds}` : `${p.newOdds}`}
+                      </span>
+                    </span>
+                    {p.changed && <Badge variant="admin" className="ml-2">Changed</Badge>}
+                    {p.pointChanged && <Badge variant="pending" className="ml-1">Line moved</Badge>}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    {p.changed && (
+                      <Button size="sm" loading={oddsSaving.has(p.betOptionId)} onClick={() => handleSaveOdds(p)}>
+                        Save
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost"
+                      onClick={() => setProposedOdds(prev => prev.filter(o => o.betOptionId !== p.betOptionId))}>
+                      Skip
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {/* Unmatched events */}
+          {unmatchedOdds.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wider">Not found</p>
+              {unmatchedOdds.map(u => (
+                <div key={u.eventId} className="flex items-center gap-3 rounded-lg border border-border/20 px-3 py-2 bg-surface-2/20">
+                  <div className="flex-1">
+                    <span className="text-sm text-white">{u.eventName}</span>
+                    <span className="ml-2 text-xs text-muted">
+                      {u.reason === 'no_api_sport' && `${u.sport} — no API mapping`}
+                      {u.reason === 'not_a_matchup' && 'Not a head-to-head game — enter odds manually'}
+                      {u.reason === 'no_game_match' && 'Game not found in API'}
+                      {u.reason === 'no_odds_data' && 'No odds data available'}
+                    </span>
+                  </div>
+                  <Button size="sm" variant="ghost"
+                    onClick={() => setUnmatchedOdds(prev => prev.filter(e => e.eventId !== u.eventId))}>
+                    Dismiss
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Tab switcher */}
       <div className="flex gap-1">
@@ -303,109 +462,6 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
 
       {tab === 'events' && (
         <div className="space-y-4">
-
-          {/* Fetch Odds from API */}
-          <div className="flex items-center gap-3">
-            <Button variant="secondary" size="sm" loading={oddsFetching} onClick={handleFetchOdds}>
-              ↓ Fetch Odds from API
-            </Button>
-            {oddsFetchError && <span className="text-xs text-danger">{oddsFetchError}</span>}
-          </div>
-
-          {/* Odds panel */}
-          {oddsDone && (
-            <Card className="space-y-3 border-accent/30">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">
-                  {(() => {
-                    const changed = proposedOdds.filter(p => p.changed).length
-                    const unchanged = proposedOdds.filter(p => !p.changed).length
-                    const parts: string[] = []
-                    if (changed > 0) parts.push(`${changed} changed`)
-                    if (unchanged > 0) parts.push(`${unchanged} unchanged`)
-                    if (unmatchedOdds.length > 0) parts.push(`${unmatchedOdds.length} not found`)
-                    return `Odds from API — ${parts.length ? parts.join(', ') : 'no new odds found'}`
-                  })()}
-                </h3>
-                <div className="flex gap-2">
-                  {proposedOdds.some(p => p.changed) && (
-                    <Button size="sm" onClick={handleSaveAllChanged}
-                      loading={oddsSaving.size > 0 && proposedOdds.filter(p => p.changed).every(p => oddsSaving.has(p.betOptionId))}>
-                      Save All Changed ({proposedOdds.filter(p => p.changed).length})
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => { setProposedOdds([]); setUnmatchedOdds([]); setOddsDone(false) }}>
-                    Dismiss
-                  </Button>
-                </div>
-              </div>
-
-              {/* Group proposed by event */}
-              {Object.entries(
-                proposedOdds.reduce((acc, p) => {
-                  if (!acc[p.eventId]) acc[p.eventId] = { name: p.eventName, items: [] }
-                  acc[p.eventId].items.push(p)
-                  return acc
-                }, {} as Record<string, { name: string; items: ProposedOddsUpdate[] }>)
-              ).map(([eventId, group]) => (
-                <div key={eventId} className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">{group.name}</p>
-                  {group.items.map(p => (
-                    <div key={p.betOptionId} className={`flex items-center gap-3 rounded-lg border px-3 py-2 ${p.changed ? 'border-accent/30 bg-accent/5' : 'border-border/30 bg-surface-2/30'}`}>
-                      <div className="flex-1 text-sm">
-                        <span className="text-white font-medium">{p.optionLabel}</span>
-                        <span className="ml-3 font-mono text-xs text-muted">
-                          {p.currentOdds !== null ? (p.currentOdds > 0 ? `+${p.currentOdds}` : `${p.currentOdds}`) : '—'}
-                          {' → '}
-                          <span className={p.changed ? 'text-accent' : 'text-muted'}>
-                            {p.newOdds > 0 ? `+${p.newOdds}` : `${p.newOdds}`}
-                          </span>
-                        </span>
-                        {p.changed && <Badge variant="admin" className="ml-2">Changed</Badge>}
-                        {p.pointChanged && <Badge variant="pending" className="ml-1">Line moved</Badge>}
-                      </div>
-                      <div className="flex gap-1.5 shrink-0">
-                        {p.changed && (
-                          <Button size="sm" loading={oddsSaving.has(p.betOptionId)} onClick={() => handleSaveOdds(p)}>
-                            Save
-                          </Button>
-                        )}
-                        <Button size="sm" variant="ghost"
-                          onClick={() => setProposedOdds(prev => prev.filter(o => o.betOptionId !== p.betOptionId))}>
-                          Skip
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-
-              {/* Unmatched events */}
-              {unmatchedOdds.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">Not found</p>
-                  {unmatchedOdds.map(u => (
-                    <div key={u.eventId} className="flex items-center gap-3 rounded-lg border border-border/20 px-3 py-2 bg-surface-2/20">
-                      <div className="flex-1">
-                        <span className="text-sm text-white">{u.eventName}</span>
-                        <span className="ml-2 text-xs text-muted">
-                          {u.reason === 'no_api_sport' && `${u.sport} — no API mapping`}
-                          {u.reason === 'not_a_matchup' && 'Not a head-to-head game — enter odds manually'}
-                          {u.reason === 'no_game_match' && 'Game not found in API'}
-                          {u.reason === 'no_odds_data' && 'No odds data available'}
-                        </span>
-                      </div>
-                      <Button size="sm" variant="ghost"
-                        onClick={() => setUnmatchedOdds(prev => prev.filter(e => e.eventId !== u.eventId))}>
-                        Dismiss
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
-
         <div className="space-y-2">
           {events.map(event => (
             <div key={event.id} className="rounded-xl border border-border bg-surface overflow-hidden">

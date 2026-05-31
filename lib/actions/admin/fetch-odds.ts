@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { fetchOdds } from '@/lib/odds-api/client'
-import { SPORT_API_KEYS, normalizeTeam, parseMatchup, findOutcomeForLabel } from '@/lib/odds-api/mapper'
+import { SPORT_API_KEYS, parseMatchup, findOutcomeForLabel, matchGame } from '@/lib/odds-api/mapper'
 import type { OddsApiOddsGame } from '@/lib/odds-api/client'
 
 const PREFERRED_BOOKMAKERS = ['fanduel', 'draftkings', 'betmgm', 'caesars']
@@ -22,19 +22,6 @@ function pickMarket(game: OddsApiOddsGame, marketKey: string) {
   return null
 }
 
-function matchGameByTeams(away: string, home: string, games: OddsApiOddsGame[]): OddsApiOddsGame | null {
-  const normAway = normalizeTeam(away)
-  const normHome = normalizeTeam(home)
-  return (
-    games.find(g => {
-      const a = normalizeTeam(g.away_team)
-      const h = normalizeTeam(g.home_team)
-      return (a.includes(normAway) || normAway.includes(a)) &&
-             (h.includes(normHome) || normHome.includes(h))
-    }) ?? null
-  )
-}
-
 // Public types ─────────────────────────────────────────────────────────────────
 
 export interface ProposedOddsUpdate {
@@ -49,6 +36,15 @@ export interface ProposedOddsUpdate {
   pointChanged?: boolean
 }
 
+export interface ProposedSpreadUpdate {
+  slateGameId: string
+  gameName: string
+  sport: string
+  currentSpread: number | null
+  newSpread: number
+  changed: boolean
+}
+
 export interface UnmatchedEvent {
   eventId: string
   eventName: string
@@ -58,6 +54,7 @@ export interface UnmatchedEvent {
 
 export interface FetchOddsResponse {
   proposed: ProposedOddsUpdate[]
+  proposedSpreads: ProposedSpreadUpdate[]
   unmatched: UnmatchedEvent[]
   error?: string
 }
@@ -68,26 +65,41 @@ export async function fetchOddsFromAPI(bzId: string): Promise<FetchOddsResponse>
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { proposed: [], unmatched: [], error: 'Not authenticated' }
+    if (!user) return { proposed: [], proposedSpreads: [], unmatched: [], error: 'Not authenticated' }
     const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
-    if (!profile?.is_admin) return { proposed: [], unmatched: [], error: 'Not authorized' }
+    if (!profile?.is_admin) return { proposed: [], proposedSpreads: [], unmatched: [], error: 'Not authorized' }
 
-    const { data: events } = await supabase
-      .from('events')
-      .select('id, name, sport, bet_type, bet_options(id, label, odds)')
-      .eq('betstravaganza_id', bzId)
-      .neq('bet_type', 'no_odds')
+    const [eventsResult, slateGamesResult] = await Promise.all([
+      supabase
+        .from('events')
+        .select('id, name, sport, bet_type, bet_options(id, label, odds)')
+        .eq('betstravaganza_id', bzId)
+        .neq('bet_type', 'no_odds'),
+      supabase
+        .from('slate_games')
+        .select('id, sport_label, away_team, home_team, start_time_et, spread')
+        .eq('betstravaganza_id', bzId),
+    ])
 
-    if (!events?.length) return { proposed: [], unmatched: [] }
+    const events = eventsResult.data ?? []
+    const slateGames = slateGamesResult.data ?? []
 
-    // Determine which markets each sport needs (minimizes API credit usage)
+    // Collect sport/market combos needed from all sources
     const sportMarkets: Record<string, Set<string>> = {}
+
     for (const ev of events) {
       const sportKey = SPORT_API_KEYS[ev.sport]
       if (!sportKey || !parseMatchup(ev.name)) continue
       const market = ev.bet_type === 'spread' ? 'spreads' : 'h2h'
       if (!sportMarkets[sportKey]) sportMarkets[sportKey] = new Set()
       sportMarkets[sportKey].add(market)
+    }
+
+    for (const game of slateGames) {
+      const sportKey = SPORT_API_KEYS[game.sport_label]
+      if (!sportKey) continue
+      if (!sportMarkets[sportKey]) sportMarkets[sportKey] = new Set()
+      sportMarkets[sportKey].add('spreads')
     }
 
     const oddsByKey: Record<string, OddsApiOddsGame[]> = {}
@@ -98,8 +110,10 @@ export async function fetchOddsFromAPI(bzId: string): Promise<FetchOddsResponse>
     )
 
     const proposed: ProposedOddsUpdate[] = []
+    const proposedSpreads: ProposedSpreadUpdate[] = []
     const unmatched: UnmatchedEvent[] = []
 
+    // Process draft events / bet options
     for (const ev of events) {
       const sportKey = SPORT_API_KEYS[ev.sport]
       if (!sportKey) {
@@ -113,7 +127,7 @@ export async function fetchOddsFromAPI(bzId: string): Promise<FetchOddsResponse>
         continue
       }
 
-      const apiGame = matchGameByTeams(matchup.away, matchup.home, oddsByKey[sportKey] ?? [])
+      const apiGame = matchGame(matchup.away, matchup.home, oddsByKey[sportKey] ?? [])
       if (!apiGame) {
         unmatched.push({ eventId: ev.id, eventName: ev.name, sport: ev.sport, reason: 'no_game_match' })
         continue
@@ -131,13 +145,13 @@ export async function fetchOddsFromAPI(bzId: string): Promise<FetchOddsResponse>
         if (!outcome) continue
 
         const update: ProposedOddsUpdate = {
-          betOptionId:  opt.id,
-          optionLabel:  opt.label,
-          eventId:      ev.id,
-          eventName:    ev.name,
-          currentOdds:  opt.odds,
-          newOdds:      outcome.price,
-          changed:      opt.odds !== outcome.price,
+          betOptionId: opt.id,
+          optionLabel: opt.label,
+          eventId:     ev.id,
+          eventName:   ev.name,
+          currentOdds: opt.odds,
+          newOdds:     outcome.price,
+          changed:     opt.odds !== outcome.price,
         }
 
         if (ev.bet_type === 'spread' && outcome.point !== undefined) {
@@ -151,8 +165,35 @@ export async function fetchOddsFromAPI(bzId: string): Promise<FetchOddsResponse>
       }
     }
 
-    return { proposed, unmatched }
+    // Process slate games — fetch the home-team spread from the API
+    for (const game of slateGames) {
+      const sportKey = SPORT_API_KEYS[game.sport_label]
+      if (!sportKey) continue
+
+      const apiGame = matchGame(game.away_team, game.home_team, oddsByKey[sportKey] ?? [], game.start_time_et)
+      if (!apiGame) continue
+
+      const market = pickMarket(apiGame, 'spreads')
+      if (!market) continue
+
+      // The home-team spread is what we store (positive = home is underdog, negative = home is favored)
+      const homeOutcome = market.outcomes.find(o =>
+        o.name.toLowerCase().includes(game.home_team.toLowerCase().split(' ').pop()!.toLowerCase())
+      )
+      if (!homeOutcome || homeOutcome.point === undefined) continue
+
+      proposedSpreads.push({
+        slateGameId:   game.id,
+        gameName:      `${game.away_team} @ ${game.home_team}`,
+        sport:         game.sport_label,
+        currentSpread: game.spread,
+        newSpread:     homeOutcome.point,
+        changed:       game.spread !== homeOutcome.point,
+      })
+    }
+
+    return { proposed, proposedSpreads, unmatched }
   } catch (e: any) {
-    return { proposed: [], unmatched: [], error: e.message }
+    return { proposed: [], proposedSpreads: [], unmatched: [], error: e.message }
   }
 }

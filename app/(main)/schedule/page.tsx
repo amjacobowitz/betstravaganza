@@ -1,9 +1,9 @@
 import { getActive } from '@/lib/db/betstravaganza'
 import { getEventsWithOptions } from '@/lib/db/events'
 import { createClient } from '@/lib/supabase/server'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
+import { Badge, ClashBadge } from '@/components/ui/Badge'
 import { sportEmoji } from '@/lib/utils/sports'
+import { bucketItem, type ScheduleBucket } from '@/lib/utils/schedule'
 
 function formatTime(iso: string | null) {
   if (!iso) return 'TBD'
@@ -13,6 +13,17 @@ function formatTime(iso: string | null) {
     minute: '2-digit',
     hour12: true,
   })
+}
+
+function formatOdds(odds: number | null) {
+  if (odds == null) return null
+  return odds > 0 ? `+${odds}` : `${odds}`
+}
+
+const SECTION_CONFIG: Record<Exclude<ScheduleBucket, 'completed'>, { label: string; color: string; dot: string }> = {
+  live:     { label: '🔴 Now / Live',   color: 'border-red-500/50 bg-red-950/20',    dot: 'bg-red-500' },
+  upcoming: { label: '📅 Coming Up',    color: 'border-border bg-surface',           dot: 'bg-accent-2' },
+  tbd:      { label: '⏳ All Day / TBD', color: 'border-border/50 bg-surface/50',    dot: 'bg-muted' },
 }
 
 export default async function SchedulePage() {
@@ -28,6 +39,8 @@ export default async function SchedulePage() {
     { data: allDraftPicks },
     { data: betOptions },
     { data: slatePicks },
+    { data: eventResults },
+    { data: slateResults },
   ] = await Promise.all([
     getEventsWithOptions(bz.id),
     supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
@@ -35,22 +48,22 @@ export default async function SchedulePage() {
     supabase.from('draft_picks').select('*').eq('betstravaganza_id', bz.id),
     supabase.from('bet_options').select('*'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id),
+    supabase.from('event_results').select('event_id').eq('betstravaganza_id', bz.id),
+    supabase.from('slate_results').select('slate_game_id').eq('betstravaganza_id', bz.id),
   ])
 
-  // Index users by id
+  const resolvedEventIds = new Set((eventResults ?? []).map((r: any) => r.event_id))
+  const resolvedSlateIds = new Set((slateResults ?? []).map((r: any) => r.slate_game_id))
   const userById = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]))
 
-  // For each event, group draft picks by bet_option_id → user names
-  // A "CLASH" event has picks on multiple different bet options by different players
   function getEventPickInfo(eventId: string) {
     const options = (betOptions ?? []).filter((o: any) => o.event_id === eventId)
     const picks = (allDraftPicks ?? []).filter((p: any) =>
       options.some((o: any) => o.id === p.bet_option_id)
     )
-
-    const byOption: Record<string, { label: string; pickers: string[] }> = {}
+    const byOption: Record<string, { label: string; odds: number | null; pickers: string[] }> = {}
     for (const opt of options) {
-      byOption[opt.id] = { label: opt.label, pickers: [] }
+      byOption[opt.id] = { label: opt.label, odds: opt.odds ?? null, pickers: [] }
     }
     for (const pick of picks) {
       if (byOption[pick.bet_option_id]) {
@@ -58,13 +71,12 @@ export default async function SchedulePage() {
         if (u) byOption[pick.bet_option_id].pickers.push(u.team_name ?? u.name)
       }
     }
-
-    const filledOptions = Object.values(byOption).filter(o => o.pickers.length > 0)
+    const allOptions = Object.values(byOption)
+    const filledOptions = allOptions.filter(o => o.pickers.length > 0)
     const isClash = filledOptions.length >= 2
-    return { filledOptions, isClash, totalPicks: picks.length }
+    return { allOptions, filledOptions, isClash, totalPicks: picks.length }
   }
 
-  // For each slate game, get who picked home vs away
   function getSlatePickInfo(gameId: string) {
     const picks = (slatePicks ?? []).filter((p: any) => p.slate_game_id === gameId)
     const homeTeam: string[] = []
@@ -80,8 +92,30 @@ export default async function SchedulePage() {
     return { homeTeam, awayTeam, isClash, totalPicks: picks.length }
   }
 
-  // Sort all items chronologically, TBD at end
-  const allItems = [
+  type ScheduleItem = {
+    id: string
+    name: string
+    sport: string
+    startTime: string | null
+    streaming: string | null
+    category: string
+    betType: string
+    isSlate: false
+  } | {
+    id: string
+    name: string
+    sport: string
+    startTime: string | null
+    streaming: string | null
+    category: 'slate'
+    betType: 'spread'
+    isSlate: true
+    awayTeam: string
+    homeTeam: string
+    spread: number | null
+  }
+
+  const allItems: ScheduleItem[] = [
     ...events.map((e: any) => ({
       id: e.id,
       name: e.name,
@@ -90,7 +124,7 @@ export default async function SchedulePage() {
       streaming: e.streaming_info as string | null,
       category: e.category as string,
       betType: e.bet_type as string,
-      isSlate: false,
+      isSlate: false as const,
     })),
     ...(slateGames ?? []).map((g: any) => ({
       id: g.id,
@@ -98,9 +132,9 @@ export default async function SchedulePage() {
       sport: g.sport_label as string,
       startTime: g.start_time_et as string | null,
       streaming: g.notes as string | null,
-      category: 'slate',
-      betType: 'spread',
-      isSlate: true,
+      category: 'slate' as const,
+      betType: 'spread' as const,
+      isSlate: true as const,
       awayTeam: g.away_team as string,
       homeTeam: g.home_team as string,
       spread: g.spread as number | null,
@@ -111,104 +145,185 @@ export default async function SchedulePage() {
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
   })
 
+  const buckets: Record<ScheduleBucket, ScheduleItem[]> = { live: [], upcoming: [], completed: [], tbd: [] }
+  for (const item of allItems) {
+    const hasResult = item.isSlate ? resolvedSlateIds.has(item.id) : resolvedEventIds.has(item.id)
+    buckets[bucketItem(item.startTime, hasResult)].push(item)
+  }
+
+  const visibleBuckets: Exclude<ScheduleBucket, 'completed'>[] = ['live', 'upcoming', 'tbd']
+
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-bold text-white">Event Schedule</h1>
-      <p className="text-sm text-muted">All times ET</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Watch Guide</h1>
+        <p className="text-sm text-muted mt-1">All times ET · {allItems.length} events</p>
+      </div>
 
-      <Card className="divide-y divide-border p-0 overflow-hidden">
-        {allItems.map(item => {
-          const eventPicks = !item.isSlate ? getEventPickInfo(item.id) : null
-          const slatePick = item.isSlate ? getSlatePickInfo(item.id) : null
-          const isClash = eventPicks?.isClash || slatePick?.isClash
+      {allItems.length === 0 && (
+        <p className="text-center text-muted py-16">No events configured yet.</p>
+      )}
 
-          return (
-            <div key={item.id} className="px-4 py-3 hover:bg-surface-2/50 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="w-16 shrink-0 pt-0.5 text-right">
-                  <span className="text-sm font-mono text-accent-2">{formatTime(item.startTime)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  {/* Title row */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-white text-sm">
-                      {sportEmoji(item.sport)} {item.name}
-                    </span>
-                    {item.category === 'required' && <Badge variant="required">REQUIRED</Badge>}
-                    {item.isSlate && <Badge variant="default">SLATE</Badge>}
-                    {isClash && <Badge variant="clash">CLASH</Badge>}
-                  </div>
+      {visibleBuckets.map(bucket => {
+        const items = buckets[bucket]
+        if (items.length === 0) return null
+        const cfg = SECTION_CONFIG[bucket]
 
-                  {/* Subtitle row */}
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted flex-wrap">
-                    <span>{item.sport}</span>
-                    {(item as any).spread !== null && (item as any).spread !== undefined && (
-                      <>
-                        <span>·</span>
-                        <span>Spread: {(item as any).spread > 0 ? '+' : ''}{(item as any).spread}</span>
-                      </>
-                    )}
-                    {item.streaming && (
-                      <>
-                        <span>·</span>
-                        <span>{item.streaming}</span>
-                      </>
-                    )}
-                    {!item.isSlate && (
-                      <>
-                        <span>·</span>
-                        <span className="capitalize">{item.betType.replace('_', ' ')}</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Picks display for draft events */}
-                  {eventPicks && eventPicks.totalPicks > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {eventPicks.filledOptions.map(opt => (
-                        <div key={opt.label} className="flex items-center gap-1.5 rounded-md bg-surface-2 border border-border/50 px-2 py-1">
-                          <span className="text-xs text-white font-medium">{opt.label}</span>
-                          <span className="text-xs text-muted">→</span>
-                          <span className="text-xs text-accent">{opt.pickers.join(', ')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {eventPicks && eventPicks.totalPicks === 0 && (
-                    <p className="mt-1 text-xs text-muted/50 italic">No picks yet</p>
-                  )}
-
-                  {/* Picks display for slate games */}
-                  {slatePick && slatePick.totalPicks > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {slatePick.awayTeam.length > 0 && (
-                        <div className="flex items-center gap-1.5 rounded-md bg-surface-2 border border-border/50 px-2 py-1">
-                          <span className="text-xs text-white font-medium">{(item as any).awayTeam} (away)</span>
-                          <span className="text-xs text-muted">→</span>
-                          <span className="text-xs text-accent">{slatePick.awayTeam.join(', ')}</span>
-                        </div>
-                      )}
-                      {slatePick.homeTeam.length > 0 && (
-                        <div className="flex items-center gap-1.5 rounded-md bg-surface-2 border border-border/50 px-2 py-1">
-                          <span className="text-xs text-white font-medium">{(item as any).homeTeam} (home)</span>
-                          <span className="text-xs text-muted">→</span>
-                          <span className="text-xs text-accent">{slatePick.homeTeam.join(', ')}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {slatePick && slatePick.totalPicks === 0 && (
-                    <p className="mt-1 text-xs text-muted/50 italic">No picks yet</p>
-                  )}
-                </div>
-              </div>
+        return (
+          <section key={bucket}>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-base font-bold text-white">{cfg.label}</h2>
+              <span className="text-xs text-muted font-mono">{items.length}</span>
             </div>
-          )
-        })}
-        {allItems.length === 0 && (
-          <div className="px-4 py-8 text-center text-muted">No events configured yet.</div>
-        )}
-      </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {items.map(item => {
+                const eventPicks = !item.isSlate ? getEventPickInfo(item.id) : null
+                const slatePickInfo = item.isSlate ? getSlatePickInfo(item.id) : null
+                const isClash = !item.isSlate && item.category === 'optional' && eventPicks?.isClash
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`rounded-xl border ${cfg.color} p-4 flex flex-col gap-3`}
+                  >
+                    {/* Card header */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted font-mono mb-1">{formatTime(item.startTime)}</p>
+                        <h3 className="font-semibold text-white text-sm leading-snug">
+                          {sportEmoji(item.sport)} {item.name}
+                        </h3>
+                        {item.streaming && (
+                          <p className="text-xs text-muted mt-0.5">{item.streaming}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {bucket === 'live' && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            LIVE
+                          </span>
+                        )}
+                        {item.category === 'required' && <Badge variant="required">REQ</Badge>}
+                        {item.isSlate && <Badge variant="default">SLATE</Badge>}
+                        {isClash && <ClashBadge />}
+                      </div>
+                    </div>
+
+                    {/* Slate game: matchup layout */}
+                    {item.isSlate && slatePickInfo && (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <PickerSide
+                          label={item.awayTeam}
+                          sublabel={item.spread != null ? (item.spread > 0 ? `+${item.spread}` : `${item.spread}`) : undefined}
+                          pickers={slatePickInfo.awayTeam}
+                          side="away"
+                        />
+                        <PickerSide
+                          label={item.homeTeam}
+                          sublabel={item.spread != null ? (item.spread > 0 ? `${-item.spread}` : `+${-item.spread}`) : undefined}
+                          pickers={slatePickInfo.homeTeam}
+                          side="home"
+                        />
+                      </div>
+                    )}
+
+                    {/* Draft event: options grid */}
+                    {!item.isSlate && eventPicks && (
+                      <div className="flex flex-col gap-1.5">
+                        {eventPicks.allOptions.length === 0 && (
+                          <p className="text-xs text-muted/50 italic">No options</p>
+                        )}
+                        {eventPicks.allOptions.map(opt => (
+                          <div
+                            key={opt.label}
+                            className="flex items-center justify-between gap-2 rounded-lg bg-surface-2/60 border border-border/40 px-3 py-2"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-xs font-medium text-white truncate">{opt.label}</span>
+                              {opt.odds != null && (
+                                <span className={`text-xs font-mono shrink-0 ${opt.odds > 0 ? 'text-win' : 'text-loss'}`}>
+                                  {formatOdds(opt.odds)}
+                                </span>
+                              )}
+                            </div>
+                            {opt.pickers.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 justify-end">
+                                {opt.pickers.map(p => (
+                                  <span key={p} className="text-xs text-accent bg-accent/10 border border-accent/20 rounded-full px-2 py-0.5">
+                                    {p}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted/40 italic">open</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
+
+      {/* Completed section — collapsed summary */}
+      {buckets.completed.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-base font-bold text-muted">✓ Completed</h2>
+            <span className="text-xs text-muted font-mono">{buckets.completed.length}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {buckets.completed.map(item => (
+              <div key={item.id} className="rounded-xl border border-border/30 bg-surface/30 px-4 py-3 flex items-center gap-3">
+                <span className="text-lg">{sportEmoji(item.sport)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-muted/70 truncate">{item.name}</p>
+                  <p className="text-xs text-muted/40">{formatTime(item.startTime)}</p>
+                </div>
+                <Badge variant="push">Final</Badge>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}
+
+function PickerSide({
+  label,
+  sublabel,
+  pickers,
+  side,
+}: {
+  label: string
+  sublabel?: string
+  pickers: string[]
+  side: 'away' | 'home'
+}) {
+  return (
+    <div className={`rounded-lg border border-border/40 bg-surface-2/60 px-3 py-2 flex flex-col gap-1.5 ${side === 'home' ? 'items-end text-right' : ''}`}>
+      <div>
+        <p className="text-xs font-semibold text-white">{label}</p>
+        {sublabel && <p className="text-xs font-mono text-muted">{sublabel}</p>}
+      </div>
+      {pickers.length > 0 ? (
+        <div className={`flex flex-wrap gap-1 ${side === 'home' ? 'justify-end' : ''}`}>
+          {pickers.map(p => (
+            <span key={p} className="text-xs text-accent bg-accent/10 border border-accent/20 rounded-full px-2 py-0.5">
+              {p}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-xs text-muted/40 italic">no picks</span>
+      )}
     </div>
   )
 }
