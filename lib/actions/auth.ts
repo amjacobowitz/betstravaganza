@@ -20,7 +20,10 @@ export async function signUp(formData: FormData) {
     email.toLowerCase() ===
     process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL?.toLowerCase()
 
-  const { error: profileError } = await supabase.from('users').insert({
+  // Use admin client: session cookie isn't set yet in this request,
+  // so auth.uid() is null and the RLS own_user_insert policy would block us.
+  const adminClient = await createAdminClient()
+  const { error: profileError } = await adminClient.from('users').insert({
     id: data.user.id,
     email,
     name,
