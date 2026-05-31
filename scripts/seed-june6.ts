@@ -502,9 +502,9 @@ async function run() {
 
   // ── 4. Create betstravaganza ──────────────────────────────────────────────
   log('\nCreating betstravaganza...')
-  const bzStart = new Date(`${DATE_ET}T17:00:00Z`) // 1pm ET
-  const bzEnd   = new Date(`${DATE_ET}T04:00:00Z`)
-  bzEnd.setDate(bzEnd.getDate() + 1)
+  const bzStart = new Date(`${DATE_ET}T04:00:00Z`) // midnight ET
+  const bzEnd   = new Date(`${DATE_ET}T03:59:00Z`)
+  bzEnd.setDate(bzEnd.getDate() + 1) // 11:59pm ET same day
 
   const bz = await insert<any>(`betstravaganza: Betstravaganza — ${DATE_ET}`,
     admin.from('betstravaganza').insert({

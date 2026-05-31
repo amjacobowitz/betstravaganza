@@ -61,7 +61,7 @@ export default async function BzOverviewPage({
       </Card>
 
       {/* Dates editor */}
-      <Card title="Event Dates">
+      <Card title="Slate Dates">
         <BzDatetimeEditor
           bzId={bz.id}
           startDatetime={(bz as any).start_datetime ?? null}
