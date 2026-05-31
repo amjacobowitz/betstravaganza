@@ -51,8 +51,18 @@ export default async function LeaderboardPage() {
                 const delta = e.total - Number(bz.starting_bankroll)
                 return (
                   <tr key={e.userId} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors">
-                    <td className="px-4 py-3 text-muted font-mono">
-                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                    <td className="px-4 py-3 font-mono">
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted">
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                        </span>
+                        {e.rankChange != null && e.rankChange > 0 && (
+                          <span className="text-win text-xs font-bold">↑{e.rankChange}</span>
+                        )}
+                        {e.rankChange != null && e.rankChange < 0 && (
+                          <span className="text-loss text-xs font-bold">↓{Math.abs(e.rankChange)}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">

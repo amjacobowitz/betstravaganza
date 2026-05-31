@@ -196,7 +196,49 @@ export default async function PicksPage({
   const slateGames = slateGamesData ?? []
 
   const viewUser = allUsers.find(u => u.id === viewUserId)
-  const viewTeamName = viewUser?.team_name ?? viewUser?.name ?? 'Unknown'
+
+  // Build clash tracker: optional events with 2 options where both sides have picks
+  interface ClashEntry {
+    eventId: string
+    eventName: string
+    sport: string
+    optionA: { label: string; pickers: string[] }
+    optionB: { label: string; pickers: string[] }
+    resultDisplay?: string
+    outcome?: 'a_wins' | 'b_wins' | 'push' | 'pending'
+  }
+  const clashEntries: ClashEntry[] = []
+  for (const event of allEvents) {
+    if (event.category !== 'optional') continue
+    const eventOptions = allOptions.filter(o => o.eventId === event.id)
+    if (eventOptions.length !== 2) continue
+    const [optA, optB] = eventOptions
+    const pickersA = allPicks
+      .filter(p => p.betOptionId === optA.id)
+      .map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
+    const pickersB = allPicks
+      .filter(p => p.betOptionId === optB.id)
+      .map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
+    if (pickersA.length === 0 || pickersB.length === 0) continue
+    const result = scoringResults.find(r => r.eventId === event.id)
+    let outcome: ClashEntry['outcome'] = 'pending'
+    if (result) {
+      const aWins = result.winnerBetOptionId === optA.id || (result.winnerBetOptionIds ?? []).includes(optA.id)
+      const bWins = result.winnerBetOptionId === optB.id || (result.winnerBetOptionIds ?? []).includes(optB.id)
+      if (aWins) outcome = 'a_wins'
+      else if (bWins) outcome = 'b_wins'
+      else outcome = 'push'
+    }
+    clashEntries.push({
+      eventId: event.id,
+      eventName: event.name,
+      sport: eventSportMap[event.id] ?? '',
+      optionA: { label: optA.label, pickers: pickersA },
+      optionB: { label: optB.label, pickers: pickersB },
+      resultDisplay: result?.resultDisplay,
+      outcome,
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -445,6 +487,60 @@ export default async function PicksPage({
             </div>
           )}
         </>
+      )}
+
+      {/* Clash Tracker */}
+      {clashEntries.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">
+            ⚔️ Clash Tracker
+          </h2>
+          <div className="space-y-2">
+            {clashEntries.map(clash => {
+              const aWon = clash.outcome === 'a_wins'
+              const bWon = clash.outcome === 'b_wins'
+              const push = clash.outcome === 'push'
+              const settled = clash.outcome !== 'pending'
+              return (
+                <Card key={clash.eventId} className="p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-xs text-muted">
+                      {sportEmoji(clash.sport)} {clash.eventName}
+                    </div>
+                    {settled && (
+                      <span className={`text-xs font-bold shrink-0 ${push ? 'text-push' : 'text-accent'}`}>
+                        {push ? 'PUSH' : clash.resultDisplay ?? 'SETTLED'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`flex-1 font-medium leading-tight ${aWon ? 'text-win' : bWon ? 'text-loss/70' : 'text-white'}`}>
+                      <div className="text-xs text-muted mb-0.5">{clash.optionA.label}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {clash.optionA.pickers.map(t => (
+                          <span key={t} className={`text-xs px-1.5 py-0.5 rounded font-medium ${aWon ? 'bg-win/15 text-win' : bWon ? 'bg-surface-2 text-muted' : 'bg-surface-2 text-white'}`}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-base shrink-0 text-muted">⚔️</span>
+                    <div className={`flex-1 text-right font-medium leading-tight ${bWon ? 'text-win' : aWon ? 'text-loss/70' : 'text-white'}`}>
+                      <div className="text-xs text-muted mb-0.5 text-right">{clash.optionB.label}</div>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {clash.optionB.pickers.map(t => (
+                          <span key={t} className={`text-xs px-1.5 py-0.5 rounded font-medium ${bWon ? 'bg-win/15 text-win' : aWon ? 'bg-surface-2 text-muted' : 'bg-surface-2 text-white'}`}>
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
       )}
     </div>
   )

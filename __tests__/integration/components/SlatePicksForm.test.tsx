@@ -40,9 +40,9 @@ vi.mock('@dnd-kit/sortable', async (importOriginal) => {
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 
 const slateGames = [
-  { id: 'g1', away_team: 'Yankees', home_team: 'Red Sox', sport_label: 'MLB', start_time_et: '2026-06-06T13:10:00Z', spread: null, notes: null },
-  { id: 'g2', away_team: 'Cubs', home_team: 'Cardinals', sport_label: 'MLB', start_time_et: '2026-06-06T14:15:00Z', spread: -1.5, notes: null },
-  { id: 'g3', away_team: 'Dodgers', home_team: 'Giants', sport_label: 'MLB', start_time_et: '2026-06-06T16:10:00Z', spread: null, notes: null },
+  { id: 'g1', away_team: 'Yankees', home_team: 'Red Sox', sport_label: 'MLB', start_time_et: '2026-06-06T13:10:00Z', spread: null, notes: null, away_odds: null, home_odds: null },
+  { id: 'g2', away_team: 'Cubs', home_team: 'Cardinals', sport_label: 'MLB', start_time_et: '2026-06-06T14:15:00Z', spread: -1.5, notes: null, away_odds: null, home_odds: null },
+  { id: 'g3', away_team: 'Dodgers', home_team: 'Giants', sport_label: 'MLB', start_time_et: '2026-06-06T16:10:00Z', spread: null, notes: null, away_odds: null, home_odds: null },
 ]
 
 const defaultProps = {
