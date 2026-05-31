@@ -1,0 +1,41 @@
+'use client'
+
+import { useState } from 'react'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
+import { createBetstravaganza } from '@/lib/actions/admin/betstravaganza'
+
+export function SetupForm() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const result = await createBetstravaganza(new FormData(e.currentTarget))
+    if (result.error) setError(result.error)
+    setLoading(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+      <Input name="name" label="Event Name" placeholder="Betstravaganza 2026" required />
+      <div className="grid grid-cols-2 gap-4">
+        <Input name="playerCount" label="Players" type="number" defaultValue={11} min={2} required />
+        <Input name="roundCount" label="Rounds" type="number" defaultValue={11} min={1} required />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Input name="stakeAmount" label="Stake ($)" type="number" defaultValue={100} min={1} required />
+        <Input name="startingBankroll" label="Starting Bankroll ($)" type="number" defaultValue={1100} min={1} required />
+      </div>
+      <Input name="confidenceMultiplier" label="Slate Points/Rank" type="number" defaultValue={3} min={1} required />
+
+      {error && <p className="text-sm text-danger">{error}</p>}
+
+      <Button type="submit" loading={loading} className="w-full">
+        Create Betstravaganza
+      </Button>
+    </form>
+  )
+}

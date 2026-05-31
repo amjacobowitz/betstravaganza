@@ -1,0 +1,100 @@
+import { getActive } from '@/lib/db/betstravaganza'
+import { getLeaderboard } from '@/lib/db/leaderboard'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+
+function formatMoney(n: number) {
+  const sign = n >= 0 ? '+' : ''
+  return `${sign}$${Math.abs(n).toFixed(0)}`
+}
+
+export default async function LeaderboardPage() {
+  const bz = await getActive()
+  if (!bz) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <p className="text-2xl">🏈</p>
+        <p className="mt-2 text-muted">No active Betstravaganza yet.</p>
+        <p className="text-sm text-muted">Ask the admin to set one up.</p>
+      </div>
+    )
+  }
+
+  const entries = await getLeaderboard(bz.id)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">{bz.name}</h1>
+        <Badge variant={bz.status === 'active' ? 'win' : 'default'}>
+          {bz.status.toUpperCase()}
+        </Badge>
+      </div>
+
+      {/* Leaderboard table */}
+      <Card className="overflow-hidden p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-2 text-left text-xs uppercase tracking-wider text-muted">
+                <th className="px-4 py-3 w-10">#</th>
+                <th className="px-4 py-3">Team</th>
+                <th className="px-4 py-3 text-right">W-L-P</th>
+                <th className="px-4 py-3 text-right">Picks</th>
+                <th className="px-4 py-3 text-right">Slate</th>
+                <th className="px-4 py-3 text-right font-bold text-white">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => {
+                const delta = e.total - Number(bz.starting_bankroll)
+                return (
+                  <tr key={e.userId} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors">
+                    <td className="px-4 py-3 text-muted font-mono">
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-white">{e.teamName}</div>
+                      <div className="text-xs text-muted">{e.name}</div>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-sm">
+                      <span className="text-win">{e.wins}</span>
+                      <span className="text-muted">-</span>
+                      <span className="text-loss">{e.losses}</span>
+                      <span className="text-muted">-</span>
+                      <span className="text-push">{e.pushes}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {e.pendingPicks > 0 && (
+                        <span className="text-xs text-muted">{e.pendingPicks} pending</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-xs text-accent-2">
+                      {e.confidenceBonus > 0 ? `+$${e.confidenceBonus}` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-bold font-mono text-base ${delta >= 0 ? 'text-win' : 'text-loss'}`}>
+                        {formatMoney(delta)}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {entries.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                    Draft hasn't started yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <p className="text-center text-xs text-muted">
+        Starting bankroll: ${Number(bz.starting_bankroll).toLocaleString()} · ${Number(bz.stake_amount)} per pick
+      </p>
+    </div>
+  )
+}

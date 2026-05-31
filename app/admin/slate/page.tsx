@@ -1,0 +1,94 @@
+import { redirect } from 'next/navigation'
+import { getActive } from '@/lib/db/betstravaganza'
+import { createClient } from '@/lib/supabase/server'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+
+export default async function SlatePage() {
+  const bz = await getActive()
+  if (!bz) redirect('/admin/setup')
+
+  const supabase = await createClient()
+
+  const [{ data: users }, { data: slateGames }, { data: slatePicks }] = await Promise.all([
+    supabase.from('users').select('id, name, team_name').order('name'),
+    supabase.from('slate_games').select('id, away_team, home_team, sport_label, start_time_et').eq('betstravaganza_id', bz.id).order('sort_order'),
+    supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id),
+  ])
+
+  const gameCount = slateGames?.length ?? 0
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">Slate Submissions</h1>
+        <span className="text-sm text-muted">{gameCount} games</span>
+      </div>
+
+      {gameCount === 0 && (
+        <Card>
+          <p className="text-muted text-sm text-center py-4">No slate games configured yet. Add them in Events.</p>
+        </Card>
+      )}
+
+      {gameCount > 0 && (
+        <div className="space-y-3">
+          {(users ?? []).map(user => {
+            const userPicks = (slatePicks ?? []).filter((p: any) => p.user_id === user.id)
+            const submitted = userPicks.length === gameCount
+            const partial = userPicks.length > 0 && !submitted
+            const submittedAt = userPicks.length > 0
+              ? new Date(Math.max(...userPicks.map((p: any) => new Date(p.submitted_at).getTime())))
+              : null
+
+            return (
+              <Card key={user.id} className={partial ? 'border-accent-2/50' : ''}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-white">{user.team_name}</div>
+                    <div className="text-xs text-muted">{user.name}</div>
+                    {submittedAt && (
+                      <div className="text-xs text-muted mt-1">
+                        Last update: {submittedAt.toLocaleString('en-US', { timeZone: 'America/New_York' })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {submitted ? (
+                      <Badge variant="win">SUBMITTED</Badge>
+                    ) : partial ? (
+                      <Badge variant="required">PARTIAL ({userPicks.length}/{gameCount})</Badge>
+                    ) : (
+                      <Badge variant="default">NOT SUBMITTED</Badge>
+                    )}
+                  </div>
+                </div>
+
+                {userPicks.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {[...userPicks]
+                      .sort((a: any, b: any) => b.confidence_rank - a.confidence_rank)
+                      .map((pick: any) => {
+                        const game = slateGames?.find(g => g.id === pick.slate_game_id)
+                        if (!game) return null
+                        const picked = pick.team_picked === 'home' ? game.home_team : game.away_team
+                        return (
+                          <div key={pick.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-5 text-right font-mono font-bold text-accent-2">
+                              {pick.confidence_rank}
+                            </span>
+                            <span className="text-white font-medium">{picked}</span>
+                            <span className="text-muted">({game.away_team} @ {game.home_team})</span>
+                          </div>
+                        )
+                      })}
+                  </div>
+                )}
+              </Card>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
