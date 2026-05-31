@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import {
   computePlayerBankroll,
   computeConfidenceBonus,
-  isClashPick,
   type DraftPick,
   type BetOption,
   type ScoringEvent,
@@ -22,6 +21,8 @@ export interface LeaderboardEntry {
   wins: number
   losses: number
   pushes: number
+  // null = no previous data (first batch ever entered)
+  rankChange: number | null
 }
 
 export async function getLeaderboard(betstravaganzaId: string): Promise<LeaderboardEntry[]> {
@@ -53,14 +54,12 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
   const stake = Number(bzData.stake_amount)
   const confidenceMultiplier = Number(bzData.confidence_multiplier)
 
-  // Raw DB rows — use any[] to avoid collisions with scoring camelCase types
   const rawPicks   = (picksData ?? []) as any[]
   const rawOptions = (optionsData ?? []) as any[]
   const rawEvents  = (eventsData ?? []) as any[]
   const rawResults = (resultsData ?? []) as any[]
   const rawSResults = (slateResultsData ?? []) as any[]
 
-  // Build shared scoring objects once (outside per-user loop)
   const scoringOptions: BetOption[] = rawOptions.map((o: any) => ({
     id: o.id,
     eventId: o.event_id,
@@ -95,29 +94,10 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     resultDisplay: r.result_display ?? '',
   }))
 
-  return usersData.map(user => {
-    const userRawPicks = rawPicks.filter((p: any) => p.user_id === user.id)
-
-    const scoringPicks: DraftPick[] = userRawPicks.map((p: any) => ({
-      id: p.id,
-      userId: p.user_id,
-      betOptionId: p.bet_option_id,
-      eventId: scoringOptions.find(o => o.id === p.bet_option_id)?.eventId ?? '',
-      roundNumber: p.round_number,
-      createdAt: new Date(p.created_at),
-    }))
-
-    const bankrollResult = computePlayerBankroll({
-      picks: scoringPicks,
-      betOptions: scoringOptions,
-      events: scoringEvents,
-      results: scoringResults,
-      startingBankroll,
-      stake,
-    })
-
-    const userSlatePicks: SlatePick[] = ((slatePicksData ?? []) as any[])
-      .filter(p => p.user_id === user.id)
+  // Helper: build SlatePick[] for one user
+  function userSlatePicks(userId: string): SlatePick[] {
+    return ((slatePicksData ?? []) as any[])
+      .filter(p => p.user_id === userId)
       .map(p => ({
         id: p.id,
         userId: p.user_id,
@@ -126,24 +106,110 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
         confidenceRank: p.confidence_rank,
         submittedAt: new Date(p.submitted_at),
       }))
+  }
 
-    const confidenceBonus = computeConfidenceBonus(userSlatePicks, sResults)
+  // Helper: build DraftPick[] for one user
+  function userDraftPicks(userId: string): DraftPick[] {
+    return rawPicks
+      .filter((p: any) => p.user_id === userId)
+      .map((p: any) => ({
+        id: p.id,
+        userId: p.user_id,
+        betOptionId: p.bet_option_id,
+        eventId: scoringOptions.find(o => o.id === p.bet_option_id)?.eventId ?? '',
+        roundNumber: p.round_number,
+        createdAt: new Date(p.created_at),
+      }))
+  }
 
-    const wins   = bankrollResult.picks.filter(p => p.outcome === 'win').length
-    const losses = bankrollResult.picks.filter(p => p.outcome === 'loss').length
-    const pushes = bankrollResult.picks.filter(p => p.outcome === 'push').length
-
+  // Build current entries
+  const rawEntries = usersData.map(user => {
+    const picks = userDraftPicks(user.id)
+    const br = computePlayerBankroll({
+      picks,
+      betOptions: scoringOptions,
+      events: scoringEvents,
+      results: scoringResults,
+      startingBankroll,
+      stake,
+    })
+    const cb = computeConfidenceBonus(userSlatePicks(user.id), sResults)
     return {
       userId: user.id,
       name: user.name,
       teamName: user.team_name,
-      bankroll: bankrollResult.total,
-      confidenceBonus,
-      total: bankrollResult.total + confidenceBonus,
-      pendingPicks: bankrollResult.pending,
-      wins,
-      losses,
-      pushes,
+      bankroll: br.total,
+      confidenceBonus: cb,
+      total: br.total + cb,
+      pendingPicks: br.pending,
+      wins: br.picks.filter(p => p.outcome === 'win').length,
+      losses: br.picks.filter(p => p.outcome === 'loss').length,
+      pushes: br.picks.filter(p => p.outcome === 'push').length,
     }
-  }).sort((a, b) => b.total - a.total)
+  })
+
+  rawEntries.sort((a, b) => b.total - a.total)
+  const currentRankMap: Record<string, number> = {}
+  rawEntries.forEach((e, i) => { currentRankMap[e.userId] = i + 1 })
+
+  // Compute previous rankings: exclude the most recently entered result batch
+  // (all results entered within 2 min of the latest updated_at)
+  const allUpdatedAts = [
+    ...rawResults.map((r: any) => new Date(r.updated_at).getTime()),
+    ...rawSResults.map((r: any) => new Date(r.updated_at).getTime()),
+  ]
+  const maxUpdatedAt = allUpdatedAts.length > 0 ? Math.max(...allUpdatedAts) : null
+
+  let previousRankMap: Record<string, number> = {}
+
+  if (maxUpdatedAt) {
+    const batchCutoff = new Date(maxUpdatedAt - 2 * 60 * 1000)
+
+    const prevScoringResults: EventResult[] = rawResults
+      .filter((r: any) => new Date(r.updated_at) < batchCutoff)
+      .map((r: any) => ({
+        id: r.id,
+        eventId: r.event_id,
+        winnerBetOptionId: r.winner_bet_option_id ?? null,
+        winnerBetOptionIds: r.winner_bet_option_ids ?? [],
+        homeScore: r.home_score ? Number(r.home_score) : null,
+        awayScore: r.away_score ? Number(r.away_score) : null,
+        resultDisplay: r.result_display ?? '',
+      }))
+
+    const prevSResults: SlateResult[] = rawSResults
+      .filter((r: any) => new Date(r.updated_at) < batchCutoff)
+      .map((r: any) => ({
+        id: r.id,
+        slateGameId: r.slate_game_id,
+        homeScore: Number(r.home_score),
+        awayScore: Number(r.away_score),
+        resultDisplay: r.result_display ?? '',
+      }))
+
+    if (prevScoringResults.length > 0 || prevSResults.length > 0) {
+      const prevEntries = usersData.map(user => {
+        const picks = userDraftPicks(user.id)
+        const br = computePlayerBankroll({
+          picks,
+          betOptions: scoringOptions,
+          events: scoringEvents,
+          results: prevScoringResults,
+          startingBankroll,
+          stake,
+        })
+        const cb = computeConfidenceBonus(userSlatePicks(user.id), prevSResults)
+        return { userId: user.id, total: br.total + cb }
+      })
+      prevEntries.sort((a, b) => b.total - a.total)
+      prevEntries.forEach((e, i) => { previousRankMap[e.userId] = i + 1 })
+    }
+  }
+
+  return rawEntries.map(entry => ({
+    ...entry,
+    rankChange: previousRankMap[entry.userId] != null
+      ? previousRankMap[entry.userId] - currentRankMap[entry.userId]
+      : null,
+  }))
 }
