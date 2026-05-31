@@ -54,7 +54,7 @@ function AvailDot({ draftCount, maxDrafts }: { draftCount: number; maxDrafts: nu
 
 function PickPool({
   events, betOptions, scoringEvents, allPicks, allUsers,
-  selectedUserId, selectedOptionId, onSelectOption, filter, search,
+  selectedUserId, selectedOptionId, onSelectOption, filter, search, hideFull,
 }: {
   events: any[]
   betOptions: BetOption[]
@@ -66,6 +66,7 @@ function PickPool({
   onSelectOption: (id: string) => void
   filter: 'all' | 'required' | 'optional'
   search: string
+  hideFull: boolean
 }) {
   // Events this player has already picked from (one pick per event per player)
   const myPickedEventIds = useMemo(() => {
@@ -97,6 +98,7 @@ function PickPool({
     const filtered = optionRows.filter(r => {
       if (filter === 'required' && r.event.category !== 'required') return false
       if (filter === 'optional' && r.event.category !== 'optional') return false
+      if (hideFull && r.isFull) return false
       if (search) {
         const q = search.toLowerCase()
         if (!r.option.label.toLowerCase().includes(q) && !r.event.name.toLowerCase().includes(q)) return false
@@ -127,20 +129,35 @@ function PickPool({
         return (
           <div key={event.id} className="border-b border-border/50 last:border-b-0">
             {/* Event header */}
-            <div className={`flex items-center gap-2 px-4 py-2 ${eventFull ? 'bg-zinc-800/30' : 'bg-surface-2/50'}`}>
-              <span className="text-base">{sportEmoji(event.sport)}</span>
-              <span className={`font-semibold text-sm ${eventFull ? 'text-muted line-through' : 'text-white'}`}>
-                {event.name}
-              </span>
-              <Badge variant={event.category === 'required' ? 'required' : 'default'} className="text-xs">
-                {event.category.toUpperCase()}
-              </Badge>
-              <span className={`ml-auto text-xs font-mono tabular-nums ${
-                eventFull ? 'text-muted' : takenSlots > 0 ? 'text-amber-400' : 'text-emerald-500'
-              }`}>
-                {takenSlots} / {totalSlots} slots taken
-              </span>
-            </div>
+            {(() => {
+              const isClashEligible = event.category === 'optional' && rows.length === 2
+              const hasClashInProgress = isClashEligible && rows[0].clashPickers.length > 0
+              return (
+                <div className={`flex items-center gap-2 px-4 py-2 ${eventFull ? 'bg-zinc-800/30' : isClashEligible ? 'bg-clash/5' : 'bg-surface-2/50'}`}>
+                  <span className="text-base">{sportEmoji(event.sport)}</span>
+                  <span className={`font-semibold text-sm ${eventFull ? 'text-muted line-through' : 'text-white'}`}>
+                    {event.name}
+                  </span>
+                  <Badge variant={event.category === 'required' ? 'required' : 'default'} className="text-xs">
+                    {event.category.toUpperCase()}
+                  </Badge>
+                  {isClashEligible && (
+                    <span className={`text-xs font-semibold rounded-full px-2 py-0.5 border ${
+                      hasClashInProgress
+                        ? 'border-clash/50 bg-clash/20 text-clash'
+                        : 'border-clash/20 bg-clash/5 text-clash/60'
+                    }`}>
+                      ⚔️ {hasClashInProgress ? 'CLASH' : 'clash eligible'}
+                    </span>
+                  )}
+                  <span className={`ml-auto text-xs font-mono tabular-nums ${
+                    eventFull ? 'text-muted' : takenSlots > 0 ? 'text-amber-400' : 'text-emerald-500'
+                  }`}>
+                    {takenSlots} / {totalSlots} slots taken
+                  </span>
+                </div>
+              )
+            })()}
 
             {/* Option rows */}
             <div className="divide-y divide-border/30">
@@ -571,6 +588,7 @@ export function DraftBoard({
   }, [currentUserId])
   const [filter, setFilter] = useState<'all' | 'required' | 'optional'>('all')
   const [search, setSearch] = useState('')
+  const [hideFull, setHideFull] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -766,8 +784,16 @@ export function DraftBoard({
                 className="h-7 rounded-lg bg-surface-2 border border-border px-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <button
+                onClick={() => setHideFull(v => !v)}
+                className={`h-7 rounded-lg border px-2.5 text-xs font-medium transition-colors
+                  ${hideFull ? 'bg-accent text-black border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
+                title="Hide fully-drafted options"
+              >
+                Hide Full
+              </button>
+              <button
                 onClick={() => setShowLegend(v => !v)}
-                className={`ml-auto h-7 w-7 rounded-lg border text-xs font-semibold transition-colors flex items-center justify-center
+                className={`h-7 w-7 rounded-lg border text-xs font-semibold transition-colors flex items-center justify-center
                   ${showLegend ? 'bg-accent text-black border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
                 title="Toggle legend"
               >
@@ -855,6 +881,7 @@ export function DraftBoard({
               onSelectOption={setSelectedOptionId}
               filter={filter}
               search={search}
+              hideFull={hideFull}
             />
             <div className="sticky bottom-4">
               <Button

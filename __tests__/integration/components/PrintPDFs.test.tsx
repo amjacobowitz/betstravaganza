@@ -69,7 +69,7 @@ describe('PrintPDFs', () => {
   it('shows descriptive text for each print option', () => {
     render(<PrintPDFs bzName="Test BZ" events={events as any} slateGames={slateGames} />)
 
-    expect(screen.getByText(/required picks sorted by odds/i)).toBeInTheDocument()
+    expect(screen.getByText(/picks sorted by odds/i)).toBeInTheDocument()
     expect(screen.getByText(/chronological list/i)).toBeInTheDocument()
   })
 

@@ -1038,12 +1038,16 @@ async function run() {
     await addSlate(game.away_team, game.home_team, sport, game.commence_time, homeSpread(game))
   }
 
-  // MLB — all 15 games (odds from API)
+  // MLB — June 6 games only (drop any that started June 5 ET, i.e. UTC time < 12:00 on June 6)
+  // June 6 12:00 UTC = June 6 8:00 AM ET — anything before that is a previous-night game
+  const june6StartUTC = new Date(`${DATE_ET}T12:00:00Z`)
   log('  MLB games...')
   if (mlbGames.length > 0) {
-    for (const g of mlbGames) await addSlateFromApi(g, 'Baseball')
+    const june6Games = mlbGames.filter(g => new Date(g.commence_time) >= june6StartUTC)
+    if (june6Games.length < mlbGames.length) warn(`  Dropped ${mlbGames.length - june6Games.length} night-before MLB games`)
+    for (const g of june6Games) await addSlateFromApi(g, 'Baseball')
   } else {
-    // Manual fallback if API doesn't return games
+    // Manual fallback — June 6 ET games only (no overnight UTC times like T01/T02)
     warn('No MLB games from API — using manual list for June 6, 2026')
     const mlbManual: [string, string, string][] = [
       ['Seattle Mariners',    'Detroit Tigers',        `${DATE_ET}T17:10:00Z`],
@@ -1058,9 +1062,6 @@ async function run() {
       ['Washington Nationals','Arizona Diamondbacks',  `${DATE_ET}T20:10:00Z`],
       ['Boston Red Sox',      'New York Yankees',      `${DATE_ET}T23:35:00Z`],
       ['Cleveland Guardians', 'Texas Rangers',         `${DATE_ET}T23:35:00Z`],
-      ['Milwaukee Brewers',   'Colorado Rockies',      `${DATE_ET}T01:10:00Z`],
-      ['Los Angeles Angels',  'Los Angeles Dodgers',   `${DATE_ET}T02:10:00Z`],
-      ['New York Mets',       'San Diego Padres',      `${DATE_ET}T02:10:00Z`],
     ]
     for (const [away, home, time] of mlbManual) await addSlate(away, home, 'Baseball', time, null)
   }

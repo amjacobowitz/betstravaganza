@@ -2,13 +2,15 @@
 
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { phoneToEmail } from '@/lib/utils/phone'
 
 export async function signUp(formData: FormData) {
-  const email = formData.get('email') as string
+  const phone = (formData.get('phone') as string).trim()
   const password = formData.get('password') as string
   const name = formData.get('name') as string
   const teamName = formData.get('teamName') as string
 
+  const email = phoneToEmail(phone)
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signUp({ email, password })
@@ -20,14 +22,13 @@ export async function signUp(formData: FormData) {
     email.toLowerCase() ===
     process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL?.toLowerCase()
 
-  // Use admin client: session cookie isn't set yet in this request,
-  // so auth.uid() is null and the RLS own_user_insert policy would block us.
   const adminClient = await createAdminClient()
   const { error: profileError } = await adminClient.from('users').insert({
     id: data.user.id,
     email,
     name,
     team_name: teamName,
+    phone,
     is_admin: isAdmin,
   })
 
@@ -35,7 +36,6 @@ export async function signUp(formData: FormData) {
     return { error: profileError.message }
   }
 
-  // If email confirmation is enabled, signUp returns no session — sign in explicitly.
   if (!data.session) {
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError) return { error: signInError.message }
@@ -45,9 +45,10 @@ export async function signUp(formData: FormData) {
 }
 
 export async function login(formData: FormData) {
-  const email = formData.get('email') as string
+  const phone = (formData.get('phone') as string).trim()
   const password = formData.get('password') as string
 
+  const email = phoneToEmail(phone)
   const supabase = await createClient()
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })

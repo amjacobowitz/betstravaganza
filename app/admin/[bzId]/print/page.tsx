@@ -14,9 +14,11 @@ export default async function PrintPage({
   if (!bz) notFound()
 
   const supabase = await createClient()
-  const [events, { data: slateGames }] = await Promise.all([
+  const [events, { data: slateGames }, { data: draftPicks }, { data: users }] = await Promise.all([
     getEventsWithOptions(bz.id),
     supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
+    supabase.from('draft_picks').select('bet_option_id, user_id').eq('betstravaganza_id', bz.id),
+    supabase.from('users').select('id, name, team_name').order('name'),
   ])
 
   return (
@@ -26,6 +28,8 @@ export default async function PrintPage({
         bzName={bz.name}
         events={events as any}
         slateGames={slateGames ?? []}
+        draftPicks={draftPicks ?? []}
+        users={users ?? []}
       />
     </div>
   )

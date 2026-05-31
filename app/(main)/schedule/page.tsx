@@ -20,10 +20,11 @@ function formatOdds(odds: number | null) {
   return odds > 0 ? `+${odds}` : `${odds}`
 }
 
-const SECTION_CONFIG: Record<Exclude<ScheduleBucket, 'completed'>, { label: string; color: string; dot: string }> = {
-  live:     { label: '🔴 Now / Live',   color: 'border-red-500/50 bg-red-950/20',    dot: 'bg-red-500' },
-  upcoming: { label: '📅 Coming Up',    color: 'border-border bg-surface',           dot: 'bg-accent-2' },
-  tbd:      { label: '⏳ All Day / TBD', color: 'border-border/50 bg-surface/50',    dot: 'bg-muted' },
+const SECTION_CONFIG: Record<ScheduleBucket, { label: string; color: string; dot: string }> = {
+  live:      { label: '● Live',            color: 'border-amber-500/40 bg-amber-950/15', dot: 'bg-amber-400' },
+  upcoming:  { label: '📅 Upcoming',      color: 'border-border bg-surface',           dot: 'bg-accent-2' },
+  tbd:       { label: '⏳ All Day / TBD', color: 'border-border/50 bg-surface/50',    dot: 'bg-muted' },
+  completed: { label: '✓ Completed',      color: 'border-border/30 bg-surface/30',    dot: 'bg-muted' },
 }
 
 export default async function SchedulePage() {
@@ -48,12 +49,15 @@ export default async function SchedulePage() {
     supabase.from('draft_picks').select('*').eq('betstravaganza_id', bz.id),
     supabase.from('bet_options').select('*'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id),
-    supabase.from('event_results').select('event_id').eq('betstravaganza_id', bz.id),
-    supabase.from('slate_results').select('slate_game_id').eq('betstravaganza_id', bz.id),
+    // 'results' table has event_id FK to events; events have betstravaganza_id
+    supabase.from('results').select('event_id, winner_bet_option_id, home_score, away_score, result_display').in('event_id', (await getEventsWithOptions(bz.id)).map((e: any) => e.id)),
+    supabase.from('slate_results').select('slate_game_id, home_score, away_score, result_display').eq('betstravaganza_id', bz.id),
   ])
 
   const resolvedEventIds = new Set((eventResults ?? []).map((r: any) => r.event_id))
   const resolvedSlateIds = new Set((slateResults ?? []).map((r: any) => r.slate_game_id))
+  const eventResultById = Object.fromEntries((eventResults ?? []).map((r: any) => [r.event_id, r]))
+  const slateResultById = Object.fromEntries((slateResults ?? []).map((r: any) => [r.slate_game_id, r]))
   const userById = Object.fromEntries((users ?? []).map((u: any) => [u.id, u]))
 
   function getEventPickInfo(eventId: string) {
@@ -165,7 +169,7 @@ export default async function SchedulePage() {
     buckets[bucketItem(item.startTime, hasResult)].push(item)
   }
 
-  const visibleBuckets: Exclude<ScheduleBucket, 'completed'>[] = ['live', 'upcoming', 'tbd']
+  const visibleBuckets: ScheduleBucket[] = ['live', 'upcoming', 'tbd', 'completed']
 
   return (
     <div className="space-y-8">
@@ -182,11 +186,12 @@ export default async function SchedulePage() {
         const items = buckets[bucket]
         if (items.length === 0) return null
         const cfg = SECTION_CONFIG[bucket]
+        const isCompleted = bucket === 'completed'
 
         return (
           <section key={bucket}>
             <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-base font-bold text-white">{cfg.label}</h2>
+              <h2 className={`text-base font-bold ${isCompleted ? 'text-muted' : 'text-white'}`}>{cfg.label}</h2>
               <span className="text-xs text-muted font-mono">{items.length}</span>
             </div>
 
@@ -195,6 +200,29 @@ export default async function SchedulePage() {
                 const eventPicks = !item.isSlate ? getEventPickInfo(item.id) : null
                 const slatePickInfo = item.isSlate ? getSlatePickInfo(item.id) : null
                 const isClash = !item.isSlate && item.category === 'optional' && eventPicks?.isClash
+
+                // Compact row for completed items
+                if (isCompleted) {
+                  const result = item.isSlate ? slateResultById[item.id] : eventResultById[item.id]
+                  const resultText = result?.result_display ??
+                    (item.isSlate && result ? `${result.away_score ?? '?'} – ${result.home_score ?? '?'}` : null)
+                  return (
+                    <div key={item.id} className="rounded-xl border border-border/30 bg-surface/30 px-4 py-3 flex items-center gap-3">
+                      <span className="text-lg">{sportEmoji(item.sport)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-muted/70 truncate">{item.name}</p>
+                        <p className="text-xs text-muted/40">{formatTime(item.startTime)}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {resultText
+                          ? <p className="text-sm font-bold text-white">{resultText}</p>
+                          : <Badge variant="push">Final</Badge>
+                        }
+                        {resultText && <p className="text-xs text-muted/50">Final</p>}
+                      </div>
+                    </div>
+                  )
+                }
 
                 return (
                   <div
@@ -214,8 +242,8 @@ export default async function SchedulePage() {
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {bucket === 'live' && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             LIVE
                           </span>
                         )}
@@ -285,27 +313,6 @@ export default async function SchedulePage() {
         )
       })}
 
-      {/* Completed section — collapsed summary */}
-      {buckets.completed.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-base font-bold text-muted">✓ Completed</h2>
-            <span className="text-xs text-muted font-mono">{buckets.completed.length}</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {buckets.completed.map(item => (
-              <div key={item.id} className="rounded-xl border border-border/30 bg-surface/30 px-4 py-3 flex items-center gap-3">
-                <span className="text-lg">{sportEmoji(item.sport)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-muted/70 truncate">{item.name}</p>
-                  <p className="text-xs text-muted/40">{formatTime(item.startTime)}</p>
-                </div>
-                <Badge variant="push">Final</Badge>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

@@ -19,7 +19,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input label="Email" name="email" type="email" required autoComplete="email" />
+      <Input label="Phone Number" name="phone" type="tel" required autoComplete="tel" placeholder="(248) 555-0100" />
       <Input label="Password" name="password" type="password" required autoComplete="current-password" />
       {error && <p className="rounded-lg bg-danger/10 border border-danger/30 px-3 py-2 text-sm text-danger">{error}</p>}
       <Button type="submit" size="lg" loading={loading} className="w-full mt-2">

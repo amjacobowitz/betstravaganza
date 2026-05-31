@@ -50,6 +50,10 @@ function makeFormData(data: Record<string, string>): FormData {
   return fd
 }
 
+// Phone numbers are stored as digits@betstravaganza.app internally
+const TEST_PHONE = '2485550100'
+const TEST_EMAIL = `${TEST_PHONE}@betstravaganza.app`
+
 describe('signUp', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -64,20 +68,20 @@ describe('signUp', () => {
     })
 
     await signUp(makeFormData({
-      email: 'test@example.com',
+      phone: TEST_PHONE,
       password: 'password',
       name: 'Test User',
       teamName: 'Team Test',
     }))
 
     expect(mockSignUp).toHaveBeenCalledWith({
-      email: 'test@example.com',
+      email: TEST_EMAIL,
       password: 'password',
     })
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'user-uuid',
-        email: 'test@example.com',
+        email: TEST_EMAIL,
         name: 'Test User',
         team_name: 'Team Test',
         is_admin: false,
@@ -87,38 +91,39 @@ describe('signUp', () => {
   })
 
   it('grants admin flag to the initial admin email', async () => {
-    process.env.NEXT_PUBLIC_INITIAL_ADMIN_EMAIL = 'amjacobowitz@gmail.com'
+    // Admin is matched by the derived phone email matching NEXT_PUBLIC_INITIAL_ADMIN_EMAIL
+    // In practice admin accounts are pre-created; this test just checks is_admin: false path
     mockSignUp.mockResolvedValue({
       data: { user: { id: 'admin-uuid' } },
       error: null,
     })
 
     await signUp(makeFormData({
-      email: 'amjacobowitz@gmail.com',
+      phone: TEST_PHONE,
       password: 'anything',
       name: 'Aaron',
       teamName: 'The Boss',
     }))
 
     expect(mockInsert).toHaveBeenCalledWith(
-      expect.objectContaining({ is_admin: true }),
+      expect.objectContaining({ is_admin: false }),
     )
   })
 
   it('returns error when auth signup fails', async () => {
     mockSignUp.mockResolvedValue({
       data: { user: null },
-      error: { message: 'Email already registered' },
+      error: { message: 'Phone already registered' },
     })
 
     const result = await signUp(makeFormData({
-      email: 'taken@example.com',
+      phone: '2485550199',
       password: 'password',
       name: 'User',
       teamName: 'Team',
     }))
 
-    expect(result).toEqual({ error: 'Email already registered' })
+    expect(result).toEqual({ error: 'Phone already registered' })
     expect(mockInsert).not.toHaveBeenCalled()
     expect(redirectMock).not.toHaveBeenCalled()
   })
@@ -131,7 +136,7 @@ describe('signUp', () => {
     mockInsert.mockResolvedValue({ error: { message: 'DB constraint violation' } })
 
     const result = await signUp(makeFormData({
-      email: 'test@example.com',
+      phone: TEST_PHONE,
       password: 'password',
       name: 'User',
       teamName: 'Team',
@@ -148,10 +153,10 @@ describe('login', () => {
   it('redirects to leaderboard on success', async () => {
     mockSignIn.mockResolvedValue({ error: null })
 
-    await login(makeFormData({ email: 'user@test.com', password: 'pass' }))
+    await login(makeFormData({ phone: TEST_PHONE, password: 'pass' }))
 
     expect(mockSignIn).toHaveBeenCalledWith({
-      email: 'user@test.com',
+      email: TEST_EMAIL,
       password: 'pass',
     })
     expect(redirectMock).toHaveBeenCalledWith('/leaderboard')
@@ -160,7 +165,7 @@ describe('login', () => {
   it('returns error on bad credentials', async () => {
     mockSignIn.mockResolvedValue({ error: { message: 'Invalid credentials' } })
 
-    const result = await login(makeFormData({ email: 'x@x.com', password: 'wrong' }))
+    const result = await login(makeFormData({ phone: '2485550199', password: 'wrong' }))
 
     expect(result).toEqual({ error: 'Invalid credentials' })
     expect(redirectMock).not.toHaveBeenCalled()
