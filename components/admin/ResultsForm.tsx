@@ -148,7 +148,9 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
   const [saved, setSaved] = useState(false)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
-  const r = game.result
+  const [localResult, setLocalResult] = useState(game.result)
+  const [formKey, setFormKey] = useState(0)
+  const r = localResult
   const status = getStatus(game.start_time_et, !!r, now)
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -163,7 +165,7 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
   }
 
   return (
-    <form onSubmit={submit} className={`rounded-xl border bg-surface p-4 space-y-3 ${prefill ? 'border-accent/40' : 'border-border'}`}>
+    <form key={formKey} onSubmit={submit} className={`rounded-xl border bg-surface p-4 space-y-3 ${prefill ? 'border-accent/40' : 'border-border'}`}>
       <input type="hidden" name="slateGameId" value={game.id} />
       <input type="hidden" name="bzId" value={bzId} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -191,31 +193,38 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
         <p className="text-xs text-muted">Display: {r.result_display}</p>
       )}
 
-      {r && (
-        confirmReset ? (
-          <div className="rounded-lg border border-danger/40 bg-danger/10 p-2.5 space-y-1.5">
-            <p className="text-xs text-danger font-medium">Clear this result?</p>
-            <div className="flex gap-1.5">
-              <Button size="sm" variant="danger" loading={resetLoading} onClick={async () => {
-                setResetLoading(true)
-                const res = await deleteSlateResult(game.id, bzId)
-                if (res.error) setError(res.error)
-                else setConfirmReset(false)
-                setResetLoading(false)
-              }}>Clear</Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" onClick={() => setConfirmReset(true)}
-            className="text-xs text-muted/40 hover:text-danger transition-colors">
-            Reset result
-          </button>
-        )
-      )}
-
       {error && <p className="text-xs text-danger">{error}</p>}
-      <Button type="submit" size="sm" loading={loading}>Save Result</Button>
+
+      {confirmReset ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2">
+          <span className="text-xs text-danger font-medium">Clear this result?</span>
+          <div className="flex gap-1.5 shrink-0">
+            <Button size="sm" variant="danger" loading={resetLoading} onClick={async () => {
+              setResetLoading(true)
+              const res = await deleteSlateResult(game.id, bzId)
+              if (res.error) {
+                setError(res.error)
+              } else {
+                setLocalResult(null)
+                setFormKey(k => k + 1)
+              }
+              setConfirmReset(false)
+              setResetLoading(false)
+            }}>Clear</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmReset(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <Button type="submit" size="sm" loading={loading}>Save Result</Button>
+          {r && (
+            <button type="button" onClick={() => setConfirmReset(true)}
+              className="text-xs text-muted/40 hover:text-danger transition-colors">
+              ↺ Reset result
+            </button>
+          )}
+        </div>
+      )}
     </form>
   )
 }
