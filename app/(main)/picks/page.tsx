@@ -10,7 +10,6 @@ import { sportEmoji } from '@/lib/utils/sports'
 import {
   computePlayerBankroll,
   computeConfidenceBonus,
-  isClashPick,
   type DraftPick,
   type BetOption,
   type ScoringEvent,
@@ -18,6 +17,25 @@ import {
   type SlatePick,
   type SlateResult,
 } from '@/lib/scoring'
+
+function getClashPartners(
+  pick: DraftPick,
+  allPicks: DraftPick[],
+  betOptions: BetOption[],
+  events: ScoringEvent[],
+  usersById: Record<string, { team_name?: string | null; name: string }>,
+): string[] {
+  const event = events.find(e => e.id === pick.eventId)
+  if (!event || event.category === 'required') return []
+  const eventOptions = betOptions.filter(o => o.eventId === pick.eventId)
+  if (eventOptions.length !== 2) return []
+  const opposing = eventOptions.find(o => o.id !== pick.betOptionId)
+  if (!opposing) return []
+  return allPicks
+    .filter(p => p.betOptionId === opposing.id && p.userId !== pick.userId)
+    .map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
+    .filter((v, i, a) => a.indexOf(v) === i)
+}
 
 function formatOdds(odds: number | null) {
   if (odds === null) return '—'
@@ -158,6 +176,8 @@ export default async function PicksPage({
     resultDisplay: r.result_display ?? '',
   }))
 
+  const usersById = Object.fromEntries(allUsers.map(u => [u.id, u]))
+
   const bankroll = computePlayerBankroll({
     picks: myPicks,
     betOptions: allOptions,
@@ -268,7 +288,7 @@ export default async function PicksPage({
                     const pickDetail = bankroll.picks.find(p => p.pickId === pick.id)
                     const outcome = pickDetail?.outcome ?? 'pending'
                     const payout = pickDetail?.payout ?? 0
-                    const clash = isClashPick(pick, allPicks, allOptions, allEvents)
+                    const clashPartners = getClashPartners(pick, allPicks, allOptions, allEvents, usersById)
                     const result = scoringResults.find(r => r.eventId === pick.eventId)
 
                     return (
@@ -277,7 +297,11 @@ export default async function PicksPage({
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-white text-sm">{option?.label}</span>
                             {event?.category === 'required' && <Badge variant="required">REQ</Badge>}
-                            {clash && <Badge variant="clash">CLASH</Badge>}
+                            {clashPartners.length > 0 && (
+                              <span className="text-xs font-semibold text-clash">
+                                ⚔️ {clashPartners.join(', ')}
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-muted mt-0.5">
                             {sportEmoji(eventSportMap[pick.eventId] ?? '')} {event?.name}
@@ -310,8 +334,8 @@ export default async function PicksPage({
                 )}
               </h2>
 
-              {/* Show existing slate results if any */}
-              {slateResults.length > 0 && mySlatePicks.length > 0 && (
+              {/* Show existing slate results for others' picks only */}
+              {!isOwnPicks && slateResults.length > 0 && mySlatePicks.length > 0 && (
                 <Card className="mb-3 overflow-hidden p-0">
                   <div className="divide-y divide-border/50">
                     {[...mySlatePicks]

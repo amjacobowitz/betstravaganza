@@ -15,7 +15,6 @@ const mainLinks = [
   { href: '/draft',       label: '📋 Draft'        },
   { href: '/slate',       label: '🏟 Slate'         },
   { href: '/schedule',    label: '📅 Schedule'     },
-  { href: '/profile',     label: '👤 Profile'      },
 ]
 
 export function NavBar({ isAdmin, userName }: NavBarProps) {
@@ -53,7 +52,7 @@ export function NavBar({ isAdmin, userName }: NavBarProps) {
             )}
           </nav>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted">{userName}</span>
+            <Link href="/profile" className="text-sm text-muted hover:text-white transition-colors">{userName}</Link>
             <form action={logout}>
               <button type="submit" className="text-sm text-muted hover:text-white transition-colors">
                 Sign out
@@ -68,7 +67,7 @@ export function NavBar({ isAdmin, userName }: NavBarProps) {
         <Link href="/leaderboard" className="text-lg font-black tracking-tight text-white">
           S<span className="text-accent">.</span>P<span className="text-accent">.</span>O<span className="text-accent">.</span>R<span className="text-accent">.</span>T<span className="text-accent">.</span>S<span className="text-accent">.</span>
         </Link>
-        <span className="text-sm text-muted">{userName}</span>
+        <Link href="/profile" className="text-sm text-muted hover:text-white transition-colors">{userName}</Link>
       </header>
 
       {/* Mobile bottom nav */}

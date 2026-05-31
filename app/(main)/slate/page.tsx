@@ -1,7 +1,6 @@
 import { getActive } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
 import { sportEmoji } from '@/lib/utils/sports'
 
 function formatTime(iso: string) {
@@ -19,6 +18,79 @@ function formatDate(iso: string) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+type PickerEntry = { name: string; rank: number; totalGames: number }
+
+function SlateSideRow({
+  side,
+  team,
+  spread,
+  pickers,
+  correct,
+  resultExists,
+}: {
+  side: 'AWAY' | 'HOME'
+  team: string
+  spread: number | null
+  pickers: PickerEntry[]
+  correct: boolean | null
+  resultExists: boolean
+}) {
+  const spreadLabel = spread == null ? null : spread > 0 ? `+${spread}` : `${spread}`
+  const isFav = spread != null && spread < 0
+
+  const rowColor = resultExists
+    ? correct === true
+      ? 'border-win/40 bg-win/5'
+      : 'border-loss/30 bg-surface-2/40'
+    : 'border-border/40 bg-surface-2/60'
+
+  return (
+    <div className={`flex items-center gap-2 rounded-lg border ${rowColor} px-3 py-2`}>
+      <span className="shrink-0 text-xs font-bold text-muted/50 w-9">{side}</span>
+
+      <div className="w-36 shrink-0">
+        <span className={`text-xs font-bold ${resultExists && correct === true ? 'text-win' : resultExists ? 'text-loss/70' : 'text-white'}`}>
+          {team}
+        </span>
+        {spreadLabel && (
+          <span className={`ml-1.5 text-xs font-mono ${isFav ? 'text-win' : 'text-muted'}`}>
+            {spreadLabel}
+          </span>
+        )}
+      </div>
+
+      <span className="shrink-0 text-border">·</span>
+
+      {pickers.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {pickers.map(p => (
+            <span
+              key={p.name}
+              className={`inline-flex items-center gap-1 text-xs rounded border px-2 py-0.5 ${
+                resultExists && correct === true
+                  ? 'border-win/30 bg-win/10'
+                  : resultExists
+                    ? 'border-loss/20 bg-loss/5'
+                    : 'border-accent/25 bg-accent/10'
+              }`}
+              title={`Confidence rank #${p.rank} of ${p.totalGames} picks`}
+            >
+              <span className={`font-medium ${resultExists && correct === true ? 'text-win' : resultExists ? 'text-muted/70' : 'text-white'}`}>
+                {p.name}
+              </span>
+              <span className={`font-mono font-bold ${resultExists && correct === true ? 'text-win' : 'text-accent'}`}>
+                #{p.rank}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-xs text-muted/40 italic">no picks</span>
+      )}
+    </div>
+  )
 }
 
 export default async function SlatePage() {
@@ -57,19 +129,26 @@ export default async function SlatePage() {
   const totalGames = slateGames.length
   const confidenceMultiplier = Number(bz.confidence_multiplier)
 
+  const userById = Object.fromEntries(users.map((u: any) => [u.id, u]))
+
+  // Per-player total picks count for rank context
+  const totalPicksByUser: Record<string, number> = {}
+  for (const p of slatePicks) {
+    totalPicksByUser[(p as any).user_id] = (totalPicksByUser[(p as any).user_id] ?? 0) + 1
+  }
+
   // Build per-player totals
   const playerTotals: Record<string, number> = {}
   for (const user of users) {
-    playerTotals[user.id] = 0
+    playerTotals[(user as any).id] = 0
   }
-
-  // Accumulate totals from results
   for (const result of slateResults) {
-    const homeWon = Number(result.home_score) > Number(result.away_score)
-    for (const pick of slatePicks.filter((p: any) => p.slate_game_id === result.slate_game_id)) {
-      const correct = (pick.team_picked === 'home' && homeWon) || (pick.team_picked === 'away' && !homeWon)
+    const homeWon = Number((result as any).home_score) > Number((result as any).away_score)
+    for (const pick of slatePicks.filter((p: any) => p.slate_game_id === (result as any).slate_game_id)) {
+      const correct = ((pick as any).team_picked === 'home' && homeWon) || ((pick as any).team_picked === 'away' && !homeWon)
       if (correct) {
-        playerTotals[pick.user_id] = (playerTotals[pick.user_id] ?? 0) + pick.confidence_rank * confidenceMultiplier
+        const uid = (pick as any).user_id
+        playerTotals[uid] = (playerTotals[uid] ?? 0) + (pick as any).confidence_rank * confidenceMultiplier
       }
     }
   }
@@ -92,10 +171,26 @@ export default async function SlatePage() {
         {slateGames.map((game: any) => {
           const gamePicks = slatePicks.filter((p: any) => p.slate_game_id === game.id)
           const gameResult = slateResults.find((r: any) => r.slate_game_id === game.id)
-
           const homeWon = gameResult
-            ? Number(gameResult.home_score) > Number(gameResult.away_score)
+            ? Number((gameResult as any).home_score) > Number((gameResult as any).away_score)
             : null
+
+          // Build away/home picker lists sorted by rank descending (highest confidence first)
+          const awayPickers: PickerEntry[] = []
+          const homePickers: PickerEntry[] = []
+          for (const p of gamePicks) {
+            const user = userById[(p as any).user_id] as any
+            if (!user) continue
+            const entry: PickerEntry = {
+              name:       user.team_name ?? user.name,
+              rank:       (p as any).confidence_rank as number,
+              totalGames: totalPicksByUser[(p as any).user_id] ?? totalGames,
+            }
+            if ((p as any).team_picked === 'away') awayPickers.push(entry)
+            else homePickers.push(entry)
+          }
+          awayPickers.sort((a, b) => b.rank - a.rank)
+          homePickers.sort((a, b) => b.rank - a.rank)
 
           return (
             <Card key={game.id} className="overflow-hidden p-0">
@@ -109,7 +204,7 @@ export default async function SlatePage() {
                     </span>
                     {gameResult && (
                       <span className="inline-flex items-center rounded-full bg-win/20 border border-win/40 px-2 py-0.5 text-xs font-semibold text-win">
-                        Final: {game.away_team} {gameResult.away_score} – {game.home_team} {gameResult.home_score}
+                        Final: {game.away_team} {(gameResult as any).away_score} – {game.home_team} {(gameResult as any).home_score}
                       </span>
                     )}
                   </div>
@@ -119,63 +214,31 @@ export default async function SlatePage() {
                 </div>
               </div>
 
-              {/* Per-player rows */}
-              {gamePicks.length === 0 ? (
-                <div className="px-4 py-3 text-xs text-muted italic">No picks yet.</div>
-              ) : (
-                <div className="divide-y divide-border/30">
-                  {users
-                    .filter(u => gamePicks.some((p: any) => p.user_id === u.id))
-                    .map(user => {
-                      const pick = gamePicks.find((p: any) => p.user_id === user.id)
-                      if (!pick) return null
-                      const pickedTeam = pick.team_picked === 'home' ? game.home_team : game.away_team
-                      const storedRank: number = pick.confidence_rank
-                      const displayRank = totalGames - storedRank + 1
-
-                      let correct: boolean | null = null
-                      let bonus = 0
-                      if (gameResult && homeWon !== null) {
-                        correct = (pick.team_picked === 'home' && homeWon) || (pick.team_picked === 'away' && !homeWon)
-                        bonus = correct ? storedRank * confidenceMultiplier : 0
-                      }
-
-                      return (
-                        <div key={user.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <div className="w-28 shrink-0">
-                            <div className="text-xs font-semibold text-white">{user.team_name || user.name}</div>
-                          </div>
-                          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                            <span className={`text-sm font-medium ${
-                              gameResult
-                                ? correct ? 'text-win' : 'text-loss'
-                                : 'text-white'
-                            }`}>
-                              {pickedTeam}
-                            </span>
-                            <span className="text-xs text-muted font-mono">#{displayRank}</span>
-                          </div>
-                          {gameResult ? (
-                            <div className="shrink-0 flex items-center gap-2">
-                              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                                correct
-                                  ? 'bg-win/20 text-win'
-                                  : 'bg-loss/20 text-loss'
-                              }`}>
-                                {correct ? 'WIN' : 'LOSS'}
-                              </span>
-                              <span className={`text-sm font-mono font-semibold ${bonus > 0 ? 'text-win' : 'text-muted'}`}>
-                                {bonus > 0 ? `+$${bonus}` : '$0'}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="shrink-0 text-xs text-muted">pending</div>
-                          )}
-                        </div>
-                      )
-                    })}
-                </div>
-              )}
+              {/* Two-sided pick display */}
+              <div className="px-4 py-3 flex flex-col gap-1.5">
+                {gamePicks.length === 0 ? (
+                  <p className="text-xs text-muted italic">No picks yet.</p>
+                ) : (
+                  <>
+                    <SlateSideRow
+                      side="AWAY"
+                      team={game.away_team}
+                      spread={game.spread != null ? -game.spread : null}
+                      pickers={awayPickers}
+                      correct={homeWon === false}
+                      resultExists={!!gameResult}
+                    />
+                    <SlateSideRow
+                      side="HOME"
+                      team={game.home_team}
+                      spread={game.spread}
+                      pickers={homePickers}
+                      correct={homeWon === true}
+                      resultExists={!!gameResult}
+                    />
+                  </>
+                )}
+              </div>
             </Card>
           )
         })}
@@ -187,9 +250,9 @@ export default async function SlatePage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Slate Bonus Totals</h2>
           <div className="divide-y divide-border/30">
             {users
-              .filter(u => slatePicks.some((p: any) => p.user_id === u.id))
-              .sort((a, b) => (playerTotals[b.id] ?? 0) - (playerTotals[a.id] ?? 0))
-              .map(user => {
+              .filter((u: any) => slatePicks.some((p: any) => p.user_id === u.id))
+              .sort((a: any, b: any) => (playerTotals[b.id] ?? 0) - (playerTotals[a.id] ?? 0))
+              .map((user: any) => {
                 const total = playerTotals[user.id] ?? 0
                 const picksForUser = slatePicks.filter((p: any) => p.user_id === user.id)
                 const submitted = picksForUser.length === totalGames
