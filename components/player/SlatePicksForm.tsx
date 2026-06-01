@@ -45,6 +45,7 @@ interface Props {
   existingPicks: ExistingPick[]
   slateLockTime: string | null
   confidenceMultiplier: number
+  revealed?: boolean
 }
 
 function formatOdds(odds: number | null | undefined) {
@@ -78,6 +79,7 @@ function SortableGameRow({
   teamPicked,
   confidenceMultiplier,
   locked,
+  hideAmounts,
   onPickTeam,
   onMoveUp,
   onMoveDown,
@@ -88,6 +90,7 @@ function SortableGameRow({
   teamPicked: 'home' | 'away' | null
   confidenceMultiplier: number
   locked: boolean
+  hideAmounts: boolean
   onPickTeam: (gameId: string, team: 'home' | 'away') => void
   onMoveUp: () => void
   onMoveDown: () => void
@@ -171,9 +174,11 @@ function SortableGameRow({
           <div className={`text-xs font-bold font-mono ${isTop ? 'text-accent' : isBottom ? 'text-muted' : 'text-white'}`}>
             #{totalGames - rank + 1}
           </div>
-          <div className={`text-xs font-mono ${teamPicked ? 'text-win' : 'text-muted/50'}`}>
-            +${potential}
-          </div>
+          {!hideAmounts && (
+            <div className={`text-xs font-mono ${teamPicked ? 'text-win' : 'text-muted/50'}`}>
+              +${potential}
+            </div>
+          )}
         </div>
       </div>
 
@@ -224,17 +229,19 @@ export function SlatePicksForm({
   existingPicks,
   slateLockTime,
   confidenceMultiplier,
+  revealed = true,
 }: Props) {
   const locked = !!(slateLockTime && new Date() > new Date(slateLockTime))
 
-  // Build initial game order from existing picks (sorted by rank desc = most confident first)
+  // Build initial game order: saved picks sorted by rank desc, then unpicked games
   const initialOrder: string[] = (() => {
-    if (existingPicks.length === slateGames.length) {
-      return [...existingPicks]
-        .sort((a, b) => b.confidenceRank - a.confidenceRank)
-        .map(p => p.slateGameId)
-    }
-    return slateGames.map(g => g.id)
+    if (existingPicks.length === 0) return slateGames.map(g => g.id)
+    const pickedIds = new Set(existingPicks.map(p => p.slateGameId))
+    const sortedPicked = [...existingPicks]
+      .sort((a, b) => b.confidenceRank - a.confidenceRank)
+      .map(p => p.slateGameId)
+    const unpicked = slateGames.map(g => g.id).filter(id => !pickedIds.has(id))
+    return [...sortedPicked, ...unpicked]
   })()
 
   // Team picks keyed by game ID
@@ -250,7 +257,7 @@ export function SlatePicksForm({
   const [teamPicks, setTeamPicks] = useState<Record<string, 'home' | 'away' | null>>(initialTeamPicks)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [submitted, setSubmitted] = useState(existingPicks.length === slateGames.length)
+  const [savedCount, setSavedCount] = useState(existingPicks.length)
 
   const n = slateGames.length
   const gameById = Object.fromEntries(slateGames.map(g => [g.id, g]))
@@ -258,8 +265,9 @@ export function SlatePicksForm({
   // Rank: position 0 = most confident = rank N
   function rankForPos(pos: number) { return n - pos }
 
-  const allPicked = gameOrder.every(id => teamPicks[id] !== null)
-  const canSubmit = allPicked && !locked
+  const pickedCount = gameOrder.filter(id => teamPicks[id] !== null).length
+  const remaining = n - pickedCount
+  const canSave = pickedCount > 0 && !locked
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -274,13 +282,11 @@ export function SlatePicksForm({
         const newIdx = prev.indexOf(over.id as string)
         return arrayMove(prev, oldIdx, newIdx)
       })
-      setSubmitted(false)
     }
   }
 
   const handlePickTeam = useCallback((gameId: string, team: 'home' | 'away') => {
     setTeamPicks(prev => ({ ...prev, [gameId]: team }))
-    setSubmitted(false)
   }, [])
 
   function handleMove(gameId: string, direction: 'up' | 'down') {
@@ -290,32 +296,41 @@ export function SlatePicksForm({
       if (newIdx < 0 || newIdx >= prev.length) return prev
       return arrayMove(prev, idx, newIdx)
     })
-    setSubmitted(false)
   }
 
-  async function handleSubmit() {
-    if (!canSubmit) return
+  async function handleSave() {
+    if (!canSave) return
     setLoading(true)
     setError(null)
 
-    const result = await submitSlatePicks(
-      betstravaganzaId,
-      gameOrder.map((gId, i) => ({
-        slateGameId: gId,
-        teamPicked: teamPicks[gId] as 'home' | 'away',
-        confidenceRank: rankForPos(i),
-      }))
-    )
+    // Only submit games where a team has been chosen, using full positional rank (1..N)
+    const picks = gameOrder
+      .map((gId, i) => ({ slateGameId: gId, teamPicked: teamPicks[gId], rank: rankForPos(i) }))
+      .filter(p => p.teamPicked !== null)
+      .map(p => ({ slateGameId: p.slateGameId, teamPicked: p.teamPicked as 'home' | 'away', confidenceRank: p.rank }))
+
+    const result = await submitSlatePicks(betstravaganzaId, picks)
 
     if (result.error) setError(result.error)
-    else setSubmitted(true)
+    else setSavedCount(picks.length)
     setLoading(false)
   }
 
   const maxPotential = gameOrder.reduce((sum, _, i) => sum + rankForPos(i) * confidenceMultiplier, 0)
 
+  const allSaved = savedCount === n
+  const justSaved = savedCount === pickedCount && pickedCount > 0
+
   return (
     <div className="space-y-4">
+      {/* Remaining picks banner */}
+      {!locked && remaining > 0 && (
+        <div className="flex items-center justify-between rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
+          <span className="text-accent font-semibold">{remaining} game{remaining !== 1 ? 's' : ''} still need a pick</span>
+          <span className="text-xs text-muted">{pickedCount}/{n} picked</span>
+        </div>
+      )}
+
       {/* Lock banner */}
       {locked && slateLockTime && (
         <div className="flex items-center gap-2 rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-sm text-loss">
@@ -324,7 +339,7 @@ export function SlatePicksForm({
           </svg>
           <span>
             <strong>Slate locked</strong> — picks closed at {formatLockTime(slateLockTime)}.
-            {submitted && ' Your picks are saved.'}
+            {savedCount > 0 && ` ${savedCount} of ${n} picks saved.`}
           </span>
         </div>
       )}
@@ -334,20 +349,15 @@ export function SlatePicksForm({
         <div className="space-y-1">
           <div className="flex items-center justify-between text-xs text-muted">
             <span>Use arrows or drag to rank — <strong className="text-white">top = most confident</strong></span>
-            <span className="text-accent font-mono font-semibold">
-              Up to +${maxPotential} if all correct
-            </span>
+            {revealed && maxPotential > 0 && (
+              <span className="text-accent font-mono font-semibold">
+                Up to +${maxPotential} if all correct
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted/70">
             Winners are determined <strong className="text-white">against the spread</strong> where a spread is listed.
           </p>
-        </div>
-      )}
-
-      {/* Locked pick summary (read-only) */}
-      {locked && submitted && (
-        <div className="text-xs text-muted">
-          Drag to rank confidence — <strong className="text-white">top = most confident</strong>
         </div>
       )}
 
@@ -368,6 +378,7 @@ export function SlatePicksForm({
                 teamPicked={teamPicks[gId]}
                 confidenceMultiplier={confidenceMultiplier}
                 locked={locked}
+                hideAmounts={!revealed}
                 onPickTeam={handlePickTeam}
                 onMoveUp={() => handleMove(gId, 'up')}
                 onMoveDown={() => handleMove(gId, 'down')}
@@ -385,19 +396,20 @@ export function SlatePicksForm({
       )}
 
       {!locked && (
-        <>
-          {!allPicked && (
-            <p className="text-xs text-muted">Pick a team for every game to submit.</p>
-          )}
-          <Button
-            onClick={handleSubmit}
-            loading={loading}
-            disabled={!canSubmit}
-            className="w-full"
-          >
-            {submitted ? '✓ Picks Submitted — Update' : 'Submit Slate Picks'}
-          </Button>
-        </>
+        <Button
+          onClick={handleSave}
+          loading={loading}
+          disabled={!canSave}
+          className="w-full"
+        >
+          {allSaved
+            ? '✓ All Picks Saved — Update'
+            : justSaved && !allSaved
+            ? `✓ ${savedCount} of ${n} Saved — Keep Going`
+            : savedCount > 0
+            ? `Save Picks (${pickedCount} of ${n})`
+            : 'Save Picks'}
+        </Button>
       )}
     </div>
   )

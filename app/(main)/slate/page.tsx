@@ -172,9 +172,9 @@ export default async function SlatePage() {
       {/* Confidence picks form for the current user */}
       {currentUser && slateGames.length > 0 && (() => {
         const myPicks = (slatePicksData ?? []).filter((p: any) => p.user_id === currentUser.id)
-        const submitted = myPicks.length === slateGames.length
+        const allSaved = myPicks.length === slateGames.length
         return (
-          <Card title={submitted ? 'Your Confidence Picks ✓' : 'Submit Your Confidence Picks'}>
+          <Card title={allSaved ? 'Your Confidence Picks ✓' : 'Your Confidence Picks'}>
             <SlatePicksForm
               betstravaganzaId={bz.id}
               slateGames={slateGames as any}
@@ -185,6 +185,7 @@ export default async function SlatePage() {
               }))}
               slateLockTime={(bz as any).start_datetime ?? null}
               confidenceMultiplier={Number(bz.confidence_multiplier)}
+              revealed={revealed}
             />
           </Card>
         )
@@ -200,9 +201,11 @@ export default async function SlatePage() {
             : null
 
           // Build away/home picker lists sorted by rank descending (highest confidence first)
+          // Exclude the current user — they see their own picks via the form above
           const awayPickers: PickerEntry[] = []
           const homePickers: PickerEntry[] = []
           for (const p of gamePicks) {
+            if (currentUser && (p as any).user_id === currentUser.id) continue
             const user = userById[(p as any).user_id] as any
             if (!user) continue
             const entry: PickerEntry = {

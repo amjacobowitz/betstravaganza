@@ -23,11 +23,15 @@ export async function submitSlatePicks(betstravaganzaId: string, picks: Array<{
     return { error: 'Slate is locked — picks closed at event start.' }
   }
 
-  // Validate: ranks must be 1..N with no duplicates
-  const ranks = picks.map(p => p.confidenceRank).sort((a, b) => a - b)
-  const expected = Array.from({ length: picks.length }, (_, i) => i + 1)
-  if (JSON.stringify(ranks) !== JSON.stringify(expected)) {
-    return { error: 'Confidence ranks must be consecutive integers starting at 1' }
+  if (picks.length === 0) return { error: 'No picks to save' }
+
+  // Validate: ranks must be distinct positive integers (partial saves use full positional ranks)
+  const ranks = picks.map(p => p.confidenceRank)
+  if (ranks.some(r => r < 1)) {
+    return { error: 'Confidence ranks must be positive' }
+  }
+  if (new Set(ranks).size !== ranks.length) {
+    return { error: 'Confidence ranks must be unique' }
   }
 
   // Delete existing picks using service-role client — no DELETE RLS policy exists for users

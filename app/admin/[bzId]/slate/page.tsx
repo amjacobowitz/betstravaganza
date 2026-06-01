@@ -24,15 +24,34 @@ export default async function SlatePage({
   const submittedCount = (users ?? []).filter(u =>
     (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length === gameCount && gameCount > 0
   ).length
+  const pendingUsers = (users ?? []).filter(u =>
+    (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length < gameCount
+  )
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Slate Submissions</h2>
         <span className="text-sm text-muted">
-          {submittedCount}/{(users ?? []).length} submitted · {gameCount} games
+          {submittedCount}/{(users ?? []).length} complete · {gameCount} games
         </span>
       </div>
+
+      {gameCount > 0 && pendingUsers.length > 0 && (
+        <div className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 space-y-1">
+          <p className="text-xs font-semibold text-accent uppercase tracking-wider mb-2">Picks Remaining</p>
+          {pendingUsers.map(u => {
+            const picked = (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length
+            const remaining = gameCount - picked
+            return (
+              <div key={u.id} className="flex items-center justify-between text-sm">
+                <span className="text-white">{u.team_name || u.name}</span>
+                <span className="text-accent font-mono font-semibold">{remaining} remaining</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {gameCount === 0 && (
         <Card>

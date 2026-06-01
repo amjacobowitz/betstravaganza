@@ -85,18 +85,16 @@ describe('SlatePicksForm', () => {
   it('submit button is disabled when no teams are picked', () => {
     render(<SlatePicksForm {...defaultProps} />)
 
-    expect(screen.getByRole('button', { name: /submit slate/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /save picks/i })).toBeDisabled()
   })
 
-  it('submit button enables after all games have a team picked', async () => {
+  it('save button enables after at least one game has a team picked', async () => {
     render(<SlatePicksForm {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /submit slate/i })).not.toBeDisabled()
+      expect(screen.getByRole('button', { name: /save picks/i })).not.toBeDisabled()
     })
   })
 
@@ -109,7 +107,7 @@ describe('SlatePicksForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
     fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /submit slate/i }))
+    fireEvent.click(screen.getByRole('button', { name: /save picks/i }))
 
     await waitFor(() => {
       expect(mockSubmitSlatePicks).toHaveBeenCalledWith('bz-1', [
@@ -128,7 +126,7 @@ describe('SlatePicksForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
     fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /submit slate/i }))
+    fireEvent.click(screen.getByRole('button', { name: /save picks/i }))
 
     await waitFor(() => {
       expect(screen.getByText('Server error')).toBeInTheDocument()
@@ -188,7 +186,7 @@ describe('SlatePicksForm', () => {
     render(<SlatePicksForm {...defaultProps} slateLockTime={pastTime} />)
 
     expect(screen.getByText(/slate locked/i)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /submit slate/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /save picks/i })).not.toBeInTheDocument()
   })
 
   it('does not lock when slateLockTime is in the future', () => {
@@ -196,7 +194,7 @@ describe('SlatePicksForm', () => {
     render(<SlatePicksForm {...defaultProps} slateLockTime={futureTime} />)
 
     expect(screen.queryByText(/slate locked/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /submit slate/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /save picks/i })).toBeInTheDocument()
   })
 
   it('disables team buttons when locked', () => {
