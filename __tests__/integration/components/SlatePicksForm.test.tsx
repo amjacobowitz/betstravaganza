@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 const { mockSubmitSlatePicks } = vi.hoisted(() => ({
   mockSubmitSlatePicks: vi.fn(),
@@ -82,55 +82,67 @@ describe('SlatePicksForm', () => {
     expect(yankeeBtn).toHaveClass('border-accent')
   })
 
-  it('submit button is disabled when no teams are picked', () => {
+  it('does not call submitSlatePicks when no teams are picked', () => {
     render(<SlatePicksForm {...defaultProps} />)
-
-    expect(screen.getByRole('button', { name: /save picks/i })).toBeDisabled()
+    expect(mockSubmitSlatePicks).not.toHaveBeenCalled()
   })
 
-  it('save button enables after at least one game has a team picked', async () => {
+  it('auto-saves after picking a team (debounced)', async () => {
+    vi.useFakeTimers()
+    mockSubmitSlatePicks.mockResolvedValue({ ok: true })
     render(<SlatePicksForm {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /save picks/i })).not.toBeDisabled()
+    // Should not have saved immediately
+    expect(mockSubmitSlatePicks).not.toHaveBeenCalled()
+
+    // Advance timer past debounce
+    await act(async () => {
+      await vi.runAllTimersAsync()
     })
+
+    expect(mockSubmitSlatePicks).toHaveBeenCalledWith('bz-1', [
+      { slateGameId: 'g1', teamPicked: 'away', confidenceRank: 3 },
+    ])
+    vi.useRealTimers()
   })
 
-  it('calls submitSlatePicks with ranks derived from game order', async () => {
+  it('auto-saves with correct ranks after all teams picked', async () => {
+    vi.useFakeTimers()
     mockSubmitSlatePicks.mockResolvedValue({ ok: true })
     render(<SlatePicksForm {...defaultProps} />)
 
-    // g1 at position 0 → rank 3, g2 → rank 2, g3 → rank 1 (default order)
+    // g1 at position 0 → rank 3, g2 → rank 2, g3 → rank 1
     fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
     fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
     fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /save picks/i }))
-
-    await waitFor(() => {
-      expect(mockSubmitSlatePicks).toHaveBeenCalledWith('bz-1', [
-        { slateGameId: 'g1', teamPicked: 'away', confidenceRank: 3 },
-        { slateGameId: 'g2', teamPicked: 'away', confidenceRank: 2 },
-        { slateGameId: 'g3', teamPicked: 'away', confidenceRank: 1 },
-      ])
+    await act(async () => {
+      await vi.runAllTimersAsync()
     })
+
+    expect(mockSubmitSlatePicks).toHaveBeenLastCalledWith('bz-1', [
+      { slateGameId: 'g1', teamPicked: 'away', confidenceRank: 3 },
+      { slateGameId: 'g2', teamPicked: 'away', confidenceRank: 2 },
+      { slateGameId: 'g3', teamPicked: 'away', confidenceRank: 1 },
+    ])
+    vi.useRealTimers()
   })
 
-  it('shows error on submit failure', async () => {
+  it('shows error when auto-save fails', async () => {
+    vi.useFakeTimers()
     mockSubmitSlatePicks.mockResolvedValue({ error: 'Server error' })
     render(<SlatePicksForm {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /Yankees away/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Cubs away/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Dodgers away/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /save picks/i }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Server error')).toBeInTheDocument()
+    await act(async () => {
+      await vi.runAllTimersAsync()
     })
+
+    expect(screen.getByText('Server error')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('pre-fills existing picks and orders by rank descending', () => {
@@ -151,7 +163,7 @@ describe('SlatePicksForm', () => {
     expect(screen.getByRole('button', { name: /Cubs away/i })).toHaveClass('border-accent')
   })
 
-  it('shows update button text when all picks already submitted', () => {
+  it('shows all picks saved status when all picks already submitted', () => {
     render(
       <SlatePicksForm
         {...defaultProps}
@@ -163,7 +175,7 @@ describe('SlatePicksForm', () => {
       />
     )
 
-    expect(screen.getByRole('button', { name: /update/i })).toBeInTheDocument()
+    expect(screen.getByText(/✓ All picks saved/)).toBeInTheDocument()
   })
 
   it('shows dollar potential for each game', () => {
@@ -194,7 +206,8 @@ describe('SlatePicksForm', () => {
     render(<SlatePicksForm {...defaultProps} slateLockTime={futureTime} />)
 
     expect(screen.queryByText(/slate locked/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /save picks/i })).toBeInTheDocument()
+    // Team buttons should be enabled (not locked)
+    expect(screen.getByRole('button', { name: /Yankees away/i })).not.toBeDisabled()
   })
 
   it('disables team buttons when locked', () => {

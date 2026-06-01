@@ -175,7 +175,6 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
 
   const blankRows = (count: number, showClash: boolean) =>
     Array.from({ length: count }, () => `<tr>
-  <td style="text-align:center;width:24px"><input type="checkbox"></td>
   <td style="border-bottom:1px solid #bbb">&nbsp;</td>
   <td class="odds" style="border-bottom:1px solid #bbb">&nbsp;</td>
   ${showClash ? `<td style="text-align:center;width:40px"><input type="checkbox"></td>` : ''}
@@ -203,7 +202,6 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
   .clash-badge { font-size: 9px; background: #fef9c3; color: #854d0e; border: 1px solid #fcd34d;
                  padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
-  col.col-check { width: 26px; }
   col.col-pick { width: auto; }
   col.col-odds { width: 44px; }
   col.col-clash { width: 40px; }
@@ -233,9 +231,9 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
 ${required.map(e => `
 <h3>${e.name} <span class="event-note">· ${e.sport}</span></h3>
 <table>
-<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-notes"></colgroup>
+<colgroup><col class="col-pick"><col class="col-odds"><col class="col-notes"></colgroup>
 <thead><tr>
-  <th class="center">✓</th><th>Pick</th><th>Odds</th><th>Notes</th>
+  <th>Pick</th><th>Odds</th><th>Notes</th>
 </tr></thead>
 <tbody>${blankRows(1, false)}</tbody>
 </table>`).join('')}
@@ -252,12 +250,11 @@ ${required.map(e => `
 ${optional.map(e => `
 <h3>${e.name}
   <span class="event-note">· ${e.sport} · ${e.bet_type.replace('_',' ')}</span>
-  ${isClashable(e) ? '<span class="clash-badge">⚔️ Clashable</span>' : ''}
 </h3>
 <table>
-<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-clash"><col class="col-notes"></colgroup>
+<colgroup><col class="col-pick"><col class="col-odds"><col class="col-clash"><col class="col-notes"></colgroup>
 <thead><tr>
-  <th class="center">✓</th><th>Pick</th><th>Odds</th><th class="center">⚔️</th><th>Notes</th>
+  <th>Pick</th><th>Odds</th><th class="center">⚔️</th><th>Notes</th>
 </tr></thead>
 <tbody>${blankRows(1, true)}</tbody>
 </table>`).join('')}
@@ -374,16 +371,16 @@ export function PrintPDFs({ bzName, events, slateGames, draftPicks = [], users =
 
         <div className="rounded-xl border border-accent/20 bg-surface p-6 space-y-3">
           <div>
-            <h2 className="font-bold text-white">My Picks <span className="text-xs font-normal text-accent ml-1">Roster Sheet</span></h2>
+            <h2 className="font-bold text-white">Roster Sheet</h2>
             <p className="text-sm text-muted mt-1">
-              Generic roster sheet for players to fill in during the draft. Shows required + optional picks with clash (⚔️) markers.
+              Blank roster for each player to fill in during the draft. One row per event.
             </p>
           </div>
           <Button
             onClick={() => printMyPicksRoster(bzName, events)}
             className="w-full"
           >
-            🖨️ Print My Picks
+            🖨️ Print Roster
           </Button>
         </div>
       </div>

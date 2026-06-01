@@ -21,7 +21,7 @@
  *   1. Belmont Stakes — 9-horse field (7:04pm ET, Saratoga, NBC)
  *   2. US vs Germany Friendly — goal scorer, all 52 players (2:30pm ET)
  *   3. US Women's Open Rd 3 — low score, top field (Riviera, NBC)
- *   4. Memorial Tournament Rd 3 — low score, full 72-player field (Muirfield, Golf Channel)
+ *   4. NHL SCF Game 3 — Goal Scorer (CAR @ VGK, 8pm ET, ABC) — all skaters from both rosters
  *   5. DGPT Northwest Championship Rd 3 — low score, no odds (Portland)
  *   6. NASCAR DQS Solutions & Staffing 250 — race winner (Michigan, FS1)
  *
@@ -282,79 +282,62 @@ const USWOMENS_OPEN_FIELD = [
   'Brianna Do',
 ]
 
-// Memorial Tournament 2026 — full 72-player field
-const MEMORIAL_TOURNAMENT_FIELD = [
-  'Scottie Scheffler',    // World #1, defending champion
-  'Rory McIlroy',
-  'Cameron Young',
-  'Matt Fitzpatrick',
-  'Tommy Fleetwood',
-  'Hideki Matsuyama',
-  'Xander Schauffele',
-  'Justin Thomas',
-  'Patrick Cantlay',
-  'Jordan Spieth',
-  'Justin Rose',
-  'Adam Scott',
-  'Shane Lowry',
-  'Robert MacIntyre',
-  'Tony Finau',
-  'Billy Horschel',
-  'Sahith Theegala',
-  'Russell Henley',
-  'Sungjae Im',
-  'Si Woo Kim',
-  'Rickie Fowler',
-  'Keegan Bradley',
-  'Corey Conners',
-  'Brian Harman',
-  'Wyndham Clark',
-  'Jason Day',
-  'Alex Noren',
-  'Nick Taylor',
-  'Sepp Straka',
-  'Min Woo Lee',
-  'Ludvig Åberg',
-  'Akshay Bhatia',
-  'Sam Burns',
-  'Patrick Rodgers',
-  'Lucas Glover',
-  'Ben Griffin',
-  'Ryan Fox',
-  'Ryo Hisatsune',
-  'Nicolai Højgaard',
-  'Tom Hoge',
-  'Mark Hubbard',
-  'Michael Kim',
-  'Jake Knapp',
-  'Denny McCarthy',
-  'Matt McCarty',
-  'Maverick McNealy',
-  'Andrew Novak',
-  'Taylor Pendrith',
-  'J.T. Poston',
-  'Aaron Rai',
-  'Kristoffer Reitan',
-  'J.J. Spaun',
-  'Sam Stevens',
-  'Jackson Suber',
-  'Jhonattan Vegas',
-  'Gary Woodland',
-  'Sudarshan Yellamaraju',
-  'Daniel Berger',
-  'Zach Bauchou',
-  'Jacob Bridgeman',
-  'Brian Campbell',
-  'Bud Cauley',
-  'Nico Echavarria',
-  'Harris English',
-  'Alex Fitzpatrick',
-  'Ryan Gerard',
-  'Chris Gotterup',
-  'Harry Hall',
-  'Brandt Snedeker',
-  'Alex Smalley',
-  'Kurt Kitayama',
+// NHL Stanley Cup Final Game 3 — all skaters from both playoff rosters
+// (Goalies excluded — they essentially never score)
+// Carolina Hurricanes active playoff roster
+const CAR_FORWARDS = [
+  'Sebastian Aho',
+  'Jackson Blake',
+  'William Carrier',
+  'Nicolas Deslauriers',
+  'Nikolaj Ehlers',
+  'Taylor Hall',
+  'Mark Jankowski',
+  'Seth Jarvis',
+  'Jesperi Kotkaniemi',
+  'Jordan Martinook',
+  'Eric Robinson',
+  'Jordan Staal',
+  'Logan Stankoven',
+  'Andrei Svechnikov',
+]
+const CAR_DEFENSE = [
+  'Jalen Chatfield',
+  'Shayne Gostisbehere',
+  "K'Andre Miller",
+  'Alexander Nikishin',
+  'Mike Reilly',
+  'Jaccob Slavin',
+  'Sean Walker',
+]
+
+// Vegas Golden Knights active playoff roster
+const VGK_FORWARDS = [
+  'Ivan Barbashev',
+  'Braeden Bowman',
+  'Nic Dowd',
+  'Pavel Dorofeyev',
+  'Tomas Hertl',
+  'Brett Howden',
+  'William Karlsson',
+  'Keegan Kolesar',
+  'Mitch Marner',
+  'Brandon Saad',
+  'Colton Sissons',
+  'Cole Smith',
+  'Reilly Smith',
+  'Mark Stone',
+  'Jack Eichel',
+]
+const VGK_DEFENSE = [
+  'Rasmus Andersson',
+  'Dylan Coghlan',
+  'Noah Hanifin',
+  'Ben Hutton',
+  'Kaedan Korczak',
+  'Jeremy Lauzon',
+  'Brayden McNabb',
+  'Shea Theodore',
 ]
 
 // DGPT Northwest Championship — Round 3 at Glendoveer East, Portland, June 6
@@ -609,30 +592,59 @@ async function run() {
   }
   warn('US Women\'s Open odds should be updated after Rounds 1-2 based on leaderboard position.')
 
-  // ── 8. Required Event 4: Memorial Tournament Round 3 ─────────────────────
-  log('\n─── Required Event 4: Memorial Tournament — Low Score (Rd 3) ───')
-  const memTime = new Date(`${DATE_ET}T11:00:00Z`) // approx 7am ET tee times
-  const evMemorial = await insert<any>('event: Memorial Tournament Rd 3',
+  // ── 8. Required Event 4: NHL SCF Game 3 — Goal Scorer ────────────────────
+  log('\n─── Required Event 4: NHL SCF Game 3 — Goal Scorer (CAR @ VGK) ───')
+  const scfGoalTime = new Date(`${DATE_ET}T00:00:00Z`) // 8pm ET = midnight UTC (next day)
+  scfGoalTime.setDate(scfGoalTime.getDate() + 1)
+  const evSCFGoal = await insert<any>('event: NHL SCF Gm 3 Goal Scorer',
     admin.from('events').insert({
       betstravaganza_id: bzId,
-      name:              'Memorial Tournament Rd 3 — Lowest Score',
-      sport:             'Golf',
+      name:              'NHL SCF Gm 3 — Goal Scorer (CAR @ VGK)',
+      sport:             'Hockey',
       category:          'required',
       bet_type:          'odds',
-      start_time_et:     memTime.toISOString(),
-      streaming_info:    'Golf Channel / Peacock (early) · NBC (afternoon) — Muirfield Village, Dublin, OH',
-      notes:             'Pick the player who shoots the lowest round 3 score. Update odds based on Rd 1-2 leaderboard.',
+      start_time_et:     scfGoalTime.toISOString(),
+      streaming_info:    'ABC / ESPN+ — T-Mobile Arena, Las Vegas (8pm ET)',
+      notes:             'Pick a skater who scores a goal in Stanley Cup Final Game 3. All forwards and defensemen from both rosters listed. Add odds before puck drop.',
     }).select().single()
   )
-  for (const player of MEMORIAL_TOURNAMENT_FIELD) {
-    await insert<any>(`  Memorial: ${player}`,
+  log('  Carolina Hurricanes forwards...')
+  for (const player of CAR_FORWARDS) {
+    await insert<any>(`  CAR F: ${player}`,
       admin.from('bet_options').insert({
-        event_id: evMemorial.id, label: player, odds: null,
+        event_id: evSCFGoal.id, label: `${player} (CAR)`, odds: null,
         max_drafts: 1, odds_source: 'manual',
       }).select().single()
     )
   }
-  warn('Memorial Tournament odds should be updated after Rounds 1-2 based on leaderboard position.')
+  log('  Carolina Hurricanes defensemen...')
+  for (const player of CAR_DEFENSE) {
+    await insert<any>(`  CAR D: ${player}`,
+      admin.from('bet_options').insert({
+        event_id: evSCFGoal.id, label: `${player} (CAR)`, odds: null,
+        max_drafts: 1, odds_source: 'manual',
+      }).select().single()
+    )
+  }
+  log('  Vegas Golden Knights forwards...')
+  for (const player of VGK_FORWARDS) {
+    await insert<any>(`  VGK F: ${player}`,
+      admin.from('bet_options').insert({
+        event_id: evSCFGoal.id, label: `${player} (VGK)`, odds: null,
+        max_drafts: 1, odds_source: 'manual',
+      }).select().single()
+    )
+  }
+  log('  Vegas Golden Knights defensemen...')
+  for (const player of VGK_DEFENSE) {
+    await insert<any>(`  VGK D: ${player}`,
+      admin.from('bet_options').insert({
+        event_id: evSCFGoal.id, label: `${player} (VGK)`, odds: null,
+        max_drafts: 1, odds_source: 'manual',
+      }).select().single()
+    )
+  }
+  warn('Add goal-scorer odds via Admin > Events before puck drop (e.g. Eichel +220, Aho +260).')
 
   // ── 9. Required Event 5: DGPT Northwest Championship Round 3 ─────────────
   log('\n─── Required Event 5: DGPT Northwest Championship — Low Score (Rd 3) ───')
@@ -1084,7 +1096,7 @@ async function run() {
   log(`     🏇 158th Belmont Stakes — ${BELMONT_STAKES_FIELD.length} horses (update odds before race)`)
   log(`     ⚽ USA vs Germany Friendly — goal scorer, ${USMNT_PLAYERS.length + GERMANY_PLAYERS.length} players (add odds before draft)`)
   log(`     ⛳ US Women\'s Open Rd 3 — ${USWOMENS_OPEN_FIELD.length} players (update odds after Rd 2)`)
-  log(`     ⛳ Memorial Tournament Rd 3 — ${MEMORIAL_TOURNAMENT_FIELD.length} players (update odds after Rd 2)`)
+  log(`     🏒 NHL SCF Gm 3 Goal Scorer — ${CAR_FORWARDS.length + CAR_DEFENSE.length + VGK_FORWARDS.length + VGK_DEFENSE.length} skaters CAR+VGK (add odds before puck drop)`)
   log(`     🥏 DGPT Northwest Championship Rd 3 — ${DGPT_NORTHWEST_FIELD.length} players (no odds)`)
   log(`     🏁 NASCAR DQS Solutions 250 — ${NASCAR_TRUCK_FIELD.length} drivers (update odds before race)`)
 
@@ -1106,13 +1118,14 @@ async function run() {
   log('     1. Admin › Events › ↓ Fetch Odds from API — refresh all spreads + API-available odds')
   log('     2. Update Belmont Stakes odds (morning line → actual book odds)')
   log('     3. Add goal-scorer odds for USA vs Germany (Pulisic, Wirtz, etc.)')
-  log('     4. After golf Rounds 1-2 finish: update USWO + Memorial odds by leaderboard')
-  log('     5. Update NASCAR odds closer to race time')
-  log('     6. Update F1 pole odds before qualifying')
+  log('     4. Add goal-scorer odds for SCF Gm 3 (Eichel, Aho, Marner, Svechnikov, etc.)')
+  log('     5. After golf Rounds 1-2 finish: update US Women\'s Open odds by leaderboard')
+  log('     6. Update NASCAR odds closer to race time')
+  log('     7. Update F1 pole odds before qualifying')
   if (playerIds.length === 0) {
-    log('     7. Admin › Setup — add players and set draft order')
+    log('     8. Admin › Setup — add players and set draft order')
   }
-  log(`     ${playerIds.length === 0 ? 8 : 7}. Admin › Draft — run the draft`)
+  log(`     ${playerIds.length === 0 ? 9 : 8}. Admin › Draft — run the draft`)
   log('═'.repeat(70) + '\n')
 }
 

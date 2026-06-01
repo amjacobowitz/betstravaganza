@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -18,7 +18,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Button } from '@/components/ui/Button'
 import { submitSlatePicks } from '@/lib/actions/player/slate-picks'
 
 interface SlateGame {
@@ -255,9 +254,10 @@ export function SlatePicksForm({
 
   const [gameOrder, setGameOrder] = useState<string[]>(initialOrder)
   const [teamPicks, setTeamPicks] = useState<Record<string, 'home' | 'away' | null>>(initialTeamPicks)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedCount, setSavedCount] = useState(existingPicks.length)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'pending' | 'saved' | 'error'>('idle')
+  const mountedRef = useRef(false)
 
   const n = slateGames.length
   const gameById = Object.fromEntries(slateGames.map(g => [g.id, g]))
@@ -267,7 +267,38 @@ export function SlatePicksForm({
 
   const pickedCount = gameOrder.filter(id => teamPicks[id] !== null).length
   const remaining = n - pickedCount
-  const canSave = pickedCount > 0 && !locked
+
+  // Auto-save whenever team picks or order changes (800ms debounce)
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return }
+    if (locked) return
+
+    const picked = gameOrder
+      .map((gId, i) => ({ slateGameId: gId, teamPicked: teamPicks[gId], rank: n - i }))
+      .filter(p => p.teamPicked !== null)
+
+    if (picked.length === 0) return
+
+    setSaveStatus('pending')
+
+    const timer = setTimeout(async () => {
+      const result = await submitSlatePicks(
+        betstravaganzaId,
+        picked.map(p => ({ slateGameId: p.slateGameId, teamPicked: p.teamPicked as 'home' | 'away', confidenceRank: p.rank })),
+      )
+      if (result.error) {
+        setError(result.error)
+        setSaveStatus('error')
+      } else {
+        setSavedCount(picked.length)
+        setError(null)
+        setSaveStatus('saved')
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameOrder, teamPicks])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -298,39 +329,11 @@ export function SlatePicksForm({
     })
   }
 
-  async function handleSave() {
-    if (!canSave) return
-    setLoading(true)
-    setError(null)
-
-    // Only submit games where a team has been chosen, using full positional rank (1..N)
-    const picks = gameOrder
-      .map((gId, i) => ({ slateGameId: gId, teamPicked: teamPicks[gId], rank: rankForPos(i) }))
-      .filter(p => p.teamPicked !== null)
-      .map(p => ({ slateGameId: p.slateGameId, teamPicked: p.teamPicked as 'home' | 'away', confidenceRank: p.rank }))
-
-    const result = await submitSlatePicks(betstravaganzaId, picks)
-
-    if (result.error) setError(result.error)
-    else setSavedCount(picks.length)
-    setLoading(false)
-  }
-
   const maxPotential = gameOrder.reduce((sum, _, i) => sum + rankForPos(i) * confidenceMultiplier, 0)
-
   const allSaved = savedCount === n
-  const justSaved = savedCount === pickedCount && pickedCount > 0
 
   return (
     <div className="space-y-4">
-      {/* Remaining picks banner */}
-      {!locked && remaining > 0 && (
-        <div className="flex items-center justify-between rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
-          <span className="text-accent font-semibold">{remaining} game{remaining !== 1 ? 's' : ''} still need a pick</span>
-          <span className="text-xs text-muted">{pickedCount}/{n} picked</span>
-        </div>
-      )}
-
       {/* Lock banner */}
       {locked && slateLockTime && (
         <div className="flex items-center gap-2 rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-sm text-loss">
@@ -346,17 +349,30 @@ export function SlatePicksForm({
 
       {/* Instructions */}
       {!locked && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted/90">
+            Pick a team for every game, then <strong className="text-white">drag or use the arrows to rank your confidence</strong> — the game at the top earns the most points if correct.
+            You can change your order at any time{revealed ? '' : ' before the slate locks'}.
+          </p>
           <div className="flex items-center justify-between text-xs text-muted">
-            <span>Use arrows or drag to rank — <strong className="text-white">top = most confident</strong></span>
-            {revealed && maxPotential > 0 && (
-              <span className="text-accent font-mono font-semibold">
-                Up to +${maxPotential} if all correct
-              </span>
-            )}
+            <span className="italic">
+              {remaining > 0
+                ? `${remaining} game${remaining !== 1 ? 's' : ''} still need a pick`
+                : allSaved
+                  ? '✓ All picks saved'
+                  : 'All teams picked'}
+            </span>
+            <span className="flex items-center gap-2">
+              {saveStatus === 'pending' && <span className="text-muted/60">saving…</span>}
+              {saveStatus === 'saved' && <span className="text-win">✓ saved</span>}
+              {saveStatus === 'error' && <span className="text-danger">save failed</span>}
+              {revealed && maxPotential > 0 && (
+                <span className="text-accent font-mono font-semibold">Up to +${maxPotential}</span>
+              )}
+            </span>
           </div>
-          <p className="text-xs text-muted/70">
-            Winners are determined <strong className="text-white">against the spread</strong> where a spread is listed.
+          <p className="text-xs text-muted/60">
+            Winners determined <strong className="text-white/80">against the spread</strong> where listed.
           </p>
         </div>
       )}
@@ -393,23 +409,6 @@ export function SlatePicksForm({
         <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
           {error}
         </div>
-      )}
-
-      {!locked && (
-        <Button
-          onClick={handleSave}
-          loading={loading}
-          disabled={!canSave}
-          className="w-full"
-        >
-          {allSaved
-            ? '✓ All Picks Saved — Update'
-            : justSaved && !allSaved
-            ? `✓ ${savedCount} of ${n} Saved — Keep Going`
-            : savedCount > 0
-            ? `Save Picks (${pickedCount} of ${n})`
-            : 'Save Picks'}
-        </Button>
       )}
     </div>
   )
