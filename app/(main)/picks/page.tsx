@@ -67,7 +67,7 @@ const outcomeBadge: Record<string, string> = {
 export default async function PicksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string }>
+  searchParams: Promise<{ user?: string; tab?: string }>
 }) {
   await requireRevealed()
   const bz = await getActive()
@@ -79,7 +79,7 @@ export default async function PicksPage({
 
   const params = await searchParams
   const viewUserId = params.user ?? currentUser.id
-  const isOwnPicks = viewUserId === currentUser.id
+  const isOwnPicks = viewUserId === currentUser.id && params.tab !== 'others'
 
   // Start market history fetch in parallel before other queries
   const marketHistoryPromise = getMarketHistory(bz.id)
@@ -268,11 +268,14 @@ export default async function PicksPage({
         >
           Mine
         </Link>
-        <div className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-          !isOwnPicks ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'
-        }`}>
+        <Link
+          href="/picks?tab=others"
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            !isOwnPicks ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'
+          }`}
+        >
           Others
-        </div>
+        </Link>
         {!isOwnPicks && (
           <TeamSelector
             users={allUsers}

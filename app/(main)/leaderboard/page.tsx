@@ -47,7 +47,7 @@ export default async function LeaderboardPage() {
                 <th className="px-4 py-3 w-10">#</th>
                 <th className="px-4 py-3">Team</th>
                 <th className="px-4 py-3 text-right">W-L-P</th>
-                <th className="px-4 py-3 text-right">Picks</th>
+                <th className="px-4 py-3 text-right">Draft</th>
                 <th className="px-4 py-3 text-right">Slate</th>
                 <th className="px-4 py-3 text-right">Bonus</th>
                 <th className="px-4 py-3 text-right font-bold text-white">Total</th>
@@ -90,7 +90,14 @@ export default async function LeaderboardPage() {
                       <span className="text-push">{e.pushes}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="font-mono text-sm text-white">${e.bankroll.toFixed(0)}</span>
+                      {(() => {
+                        const draftDelta = e.bankroll - startingBankroll
+                        return (
+                          <span className={`font-mono text-sm ${draftDelta > 0 ? 'text-win' : draftDelta < 0 ? 'text-loss' : 'text-muted'}`}>
+                            {draftDelta >= 0 ? '+' : ''}${draftDelta.toFixed(0)}
+                          </span>
+                        )
+                      })()}
                       {e.pendingPicks > 0 && (
                         <div className="text-xs text-muted">{e.pendingPicks} pending</div>
                       )}

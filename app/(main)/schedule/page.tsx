@@ -34,6 +34,8 @@ export default async function SchedulePage() {
   if (!bz) return <p className="text-muted text-center py-16">No active Betstravaganza.</p>
 
   const supabase = await createClient()
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  const currentUserId = currentUser?.id ?? null
 
   const [
     events,
@@ -91,8 +93,8 @@ export default async function SchedulePage() {
 
   function getSlatePickInfo(gameId: string) {
     const picks = (slatePicks ?? []).filter((p: any) => p.slate_game_id === gameId)
-    const homeSide: { name: string; rank: number; total: number }[] = []
-    const awaySide: { name: string; rank: number; total: number }[] = []
+    const homeSide: { name: string; rank: number; total: number; isMe: boolean }[] = []
+    const awaySide: { name: string; rank: number; total: number; isMe: boolean }[] = []
     for (const pick of picks) {
       const u = userById[pick.user_id]
       if (!u) continue
@@ -100,11 +102,11 @@ export default async function SchedulePage() {
         name:  u.team_name ?? u.name,
         rank:  pick.confidence_rank as number,
         total: totalSlatePicksByUser[pick.user_id] ?? 1,
+        isMe:  pick.user_id === currentUserId,
       }
       if (pick.team_picked === 'home') homeSide.push(entry)
       else awaySide.push(entry)
     }
-    // Sort each side by rank descending (highest confidence = highest rank number first)
     const byRankDesc = (a: typeof homeSide[0], b: typeof homeSide[0]) => b.rank - a.rank
     homeSide.sort(byRankDesc)
     awaySide.sort(byRankDesc)
@@ -324,7 +326,7 @@ function SlateSideRow({
   side: 'AWAY' | 'HOME'
   team: string
   spread: number | null
-  pickers: { name: string; rank: number; total: number }[]
+  pickers: { name: string; rank: number; total: number; isMe: boolean }[]
 }) {
   const spreadLabel = spread == null ? null : spread > 0 ? `+${spread}` : `${spread}`
   const isFav = spread != null && spread < 0
@@ -353,11 +355,11 @@ function SlateSideRow({
           {pickers.map(p => (
             <span
               key={p.name}
-              className="inline-flex items-center gap-1 text-xs rounded border border-accent/25 bg-accent/10 px-2 py-0.5"
+              className={`inline-flex items-center gap-1 text-xs rounded border px-2 py-0.5 ${p.isMe ? 'border-accent-2/50 bg-accent-2/10' : 'border-accent/25 bg-accent/10'}`}
               title={`Ranked #${p.rank} of ${p.total} picks`}
             >
-              <span className="font-medium text-white">{p.name}</span>
-              <span className="font-mono font-bold text-accent">#{p.rank}</span>
+              <span className={`font-medium ${p.isMe ? 'text-accent-2' : 'text-white'}`}>{p.name}{p.isMe ? ' (you)' : ''}</span>
+              <span className={`font-mono font-bold ${p.isMe ? 'text-accent-2' : 'text-accent'}`}>#{p.rank}</span>
             </span>
           ))}
         </div>

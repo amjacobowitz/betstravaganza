@@ -216,10 +216,12 @@ describe('DraftBoard', () => {
     expect(screen.queryByText('USA')).not.toBeInTheDocument()
   })
 
-  it('switching players updates the "Picking for" header', () => {
+  it('clicking roster button switches to roster tab for that player', () => {
     render(<DraftBoard {...defaultProps} />)
 
-    fireEvent.click(screen.getByText('Team B'))
+    // Team B's roster button is the second one (index 1)
+    const rosterButtons = screen.getAllByTitle('View roster')
+    fireEvent.click(rosterButtons[1])
 
     expect(screen.getByText(/team b — roster/i)).toBeInTheDocument()
   })

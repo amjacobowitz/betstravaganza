@@ -48,6 +48,12 @@ export function BzNav({ bzId, bzName, bzStatus, bzRevealed }: {
         <span className="text-white font-semibold">{bzName}</span>
         <Badge variant={statusVariant[bzStatus] as any}>{bzStatus.toUpperCase()}</Badge>
         <Badge variant={bzRevealed ? 'win' : 'default'}>{bzRevealed ? '👁 Revealed' : '🔒 Hidden'}</Badge>
+        <Link
+          href={bzRevealed ? '/leaderboard' : '/slate'}
+          className="ml-auto text-xs text-accent hover:text-white transition-colors"
+        >
+          View App →
+        </Link>
       </div>
       <nav className="flex gap-0.5 overflow-x-auto">
         {tabs.map(tab => (

@@ -728,10 +728,10 @@ export function DraftBoard({
           const isSelected = p.userId === selectedUserId
           const needsRequired = p.requiredRemaining.length >= p.roundsRemaining
           return (
-            <button
+            <div
               key={p.userId}
-              onClick={() => { setSelectedUserId(p.userId); setTab('roster') }}
-              className={`w-full rounded-xl border p-3 text-left transition-all
+              onClick={() => setSelectedUserId(p.userId)}
+              className={`w-full rounded-xl border p-3 text-left transition-all cursor-pointer
                 ${isSelected ? 'border-accent bg-accent/10' : isCurrent ? 'border-accent-2 bg-accent-2/5' : 'border-border bg-surface hover:border-border/80'}
               `}
             >
@@ -752,10 +752,19 @@ export function DraftBoard({
                     <div className="text-xs text-muted">{p.name}</div>
                   </div>
                 </div>
-                <span className={`text-xs font-mono shrink-0 ${p.totalPicks > bz.round_count ? 'text-danger' : 'text-muted'}`}>
-                  {p.totalPicks}/{bz.round_count}
-                  {p.totalPicks > bz.round_count && ' ⚠'}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`text-xs font-mono ${p.totalPicks > bz.round_count ? 'text-danger' : 'text-muted'}`}>
+                    {p.totalPicks}/{bz.round_count}
+                    {p.totalPicks > bz.round_count && ' ⚠'}
+                  </span>
+                  <button
+                    onClick={e => { e.stopPropagation(); setSelectedUserId(p.userId); setTab('roster') }}
+                    className="rounded px-1.5 py-0.5 text-xs text-muted hover:text-white hover:bg-surface-2 transition-colors"
+                    title="View roster"
+                  >
+                    📋
+                  </button>
+                </div>
               </div>
 
               <div className="mt-2 space-y-0.5">
@@ -778,7 +787,7 @@ export function DraftBoard({
                   ⚠️ Must pick required only ({p.requiredRemaining.length} left, {p.roundsRemaining} rounds)
                 </div>
               )}
-            </button>
+            </div>
           )
         })}
       </div>
