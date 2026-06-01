@@ -6,6 +6,7 @@ import {
   Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 import type { MarketHistoryData } from '@/lib/db/market'
+import { getBird } from '@/lib/utils/birds'
 
 function SortedTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
@@ -28,11 +29,17 @@ function SortedTooltip({ active, payload, label }: any) {
   )
 }
 
-export const MARKET_COLORS = [
+const FALLBACK_COLORS = [
   '#1493ff', '#2dcf6e', '#f5c518', '#f97316',
   '#c084fc', '#fb7185', '#34d399', '#60a5fa',
   '#fbbf24', '#a78bfa',
 ]
+
+export const MARKET_COLORS = FALLBACK_COLORS
+
+function teamColor(teamName: string, fallbackIndex: number): string {
+  return getBird(teamName)?.color ?? FALLBACK_COLORS[fallbackIndex % FALLBACK_COLORS.length]
+}
 
 interface Props extends MarketHistoryData {
   singleUserId?: string
@@ -82,31 +89,34 @@ export function MarketChart({ steps, users, startingBankroll, singleUserId, hide
           >
             🏟 Slate
           </button>
-          {!hideTeamFilter && users.map((u, i) => (
-            <button
-              key={u.userId}
-              onClick={() => {
-                setVisibleUsers(prev => {
-                  const next = new Set(prev)
-                  if (next.has(u.userId)) next.delete(u.userId)
-                  else next.add(u.userId)
-                  return next
-                })
-              }}
-              className="rounded-full px-3 py-1 text-xs font-semibold transition-colors border"
-              style={visibleUsers.has(u.userId) ? {
-                background: `${MARKET_COLORS[i % MARKET_COLORS.length]}22`,
-                borderColor: `${MARKET_COLORS[i % MARKET_COLORS.length]}66`,
-                color: MARKET_COLORS[i % MARKET_COLORS.length],
-              } : {
-                background: 'var(--surface-2)',
-                borderColor: 'var(--border)',
-                color: 'var(--text-muted)',
-              }}
-            >
-              {u.teamName}
-            </button>
-          ))}
+          {!hideTeamFilter && users.map((u, i) => {
+            const color = teamColor(u.teamName, i)
+            return (
+              <button
+                key={u.userId}
+                onClick={() => {
+                  setVisibleUsers(prev => {
+                    const next = new Set(prev)
+                    if (next.has(u.userId)) next.delete(u.userId)
+                    else next.add(u.userId)
+                    return next
+                  })
+                }}
+                className="rounded-full px-3 py-1 text-xs font-semibold transition-colors border"
+                style={visibleUsers.has(u.userId) ? {
+                  background: `${color}22`,
+                  borderColor: `${color}66`,
+                  color,
+                } : {
+                  background: 'var(--surface-2)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                {u.teamName}
+              </button>
+            )
+          })}
         </div>
       )}
 
@@ -146,14 +156,14 @@ export function MarketChart({ steps, users, startingBankroll, singleUserId, hide
                   formatter={value => <span style={{ color: '#c8d8ee' }}>{value}</span>}
                 />
               )}
-              {displayUsers.map(u => {
+              {displayUsers.map((u, i) => {
                 const colorIdx = users.findIndex(x => x.userId === u.userId)
                 return (
                   <Line
                     key={u.userId}
                     type="monotone"
                     dataKey={u.teamName}
-                    stroke={MARKET_COLORS[colorIdx % MARKET_COLORS.length]}
+                    stroke={teamColor(u.teamName, colorIdx)}
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 4, strokeWidth: 0 }}

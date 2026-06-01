@@ -27,7 +27,7 @@ export function NavBar({ isAdmin, userName, revealed = true }: NavBarProps) {
       {/* Desktop top bar */}
       <header className="sticky top-0 z-50 hidden border-b border-border bg-surface/90 backdrop-blur-sm sm:block">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <Link href="/leaderboard" className="flex items-center gap-2">
+          <Link href={revealed ? '/leaderboard' : '/slate'} className="flex items-center gap-2">
             <span className="text-xl font-black tracking-tight text-white">
               S<span className="text-accent">.</span>P<span className="text-accent">.</span>O<span className="text-accent">.</span>R<span className="text-accent">.</span>T<span className="text-accent">.</span>S<span className="text-accent">.</span>
             </span>
@@ -66,7 +66,7 @@ export function NavBar({ isAdmin, userName, revealed = true }: NavBarProps) {
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-surface/90 px-4 py-3 backdrop-blur-sm sm:hidden">
-        <Link href="/leaderboard" className="text-lg font-black tracking-tight text-white">
+        <Link href={revealed ? '/leaderboard' : '/slate'} className="text-lg font-black tracking-tight text-white">
           S<span className="text-accent">.</span>P<span className="text-accent">.</span>O<span className="text-accent">.</span>R<span className="text-accent">.</span>T<span className="text-accent">.</span>S<span className="text-accent">.</span>
         </Link>
         <Link href="/profile" className="text-sm text-muted hover:text-white transition-colors">{userName}</Link>

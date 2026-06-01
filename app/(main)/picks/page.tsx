@@ -7,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BirdAvatar } from '@/components/ui/BirdAvatar'
-import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 import { TeamSelector } from '@/components/player/TeamSelector'
 import { MarketChart } from '@/components/MarketChart'
 import { sportEmoji } from '@/lib/utils/sports'
@@ -502,20 +501,13 @@ export default async function PicksPage({
                 </Card>
               )}
 
-              {/* Show slate form only for own picks */}
+              {/* Own picks — link to Slate page to submit */}
               {isOwnPicks && (
-                <Card title="Submit / Update Picks">
-                  <SlatePicksForm
-                    betstravaganzaId={bz.id}
-                    slateGames={slateGames as any}
-                    existingPicks={mySlatePicks.map(sp => ({
-                      slateGameId: sp.slateGameId,
-                      teamPicked: sp.teamPicked,
-                      confidenceRank: sp.confidenceRank,
-                    }))}
-                    slateLockTime={(bz as any).start_datetime ?? null}
-                    confidenceMultiplier={Number(bz.confidence_multiplier)}
-                  />
+                <Card className="text-sm text-muted">
+                  {mySlatePicks.length === slateGames.length
+                    ? <span className="text-win font-medium">✓ Picks submitted. Visit the <a href="/slate" className="underline hover:text-white transition-colors">Slate page</a> to update them.</span>
+                    : <span>Submit your confidence picks on the <a href="/slate" className="underline hover:text-white transition-colors text-accent">Slate page</a>.</span>
+                  }
                 </Card>
               )}
             </div>

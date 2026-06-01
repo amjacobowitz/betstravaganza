@@ -1,6 +1,7 @@
 import { getActive } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
+import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 import { sportEmoji } from '@/lib/utils/sports'
 
 function formatTime(iso: string) {
@@ -108,6 +109,7 @@ export default async function SlatePage() {
   }
 
   const supabase = await createClient()
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
 
   const [
     { data: slateGamesData },
@@ -125,6 +127,7 @@ export default async function SlatePage() {
   const slatePicks = slatePicksData ?? []
   const slateResults = slateResultsData ?? []
   const users = usersData ?? []
+  const revealed = !!(bz as any).revealed
 
   const totalGames = slateGames.length
   const confidenceMultiplier = Number(bz.confidence_multiplier)
@@ -165,6 +168,27 @@ export default async function SlatePage() {
           <p className="text-muted text-sm text-center py-8">No slate games configured yet.</p>
         </Card>
       )}
+
+      {/* Confidence picks form for the current user */}
+      {currentUser && slateGames.length > 0 && (() => {
+        const myPicks = (slatePicksData ?? []).filter((p: any) => p.user_id === currentUser.id)
+        const submitted = myPicks.length === slateGames.length
+        return (
+          <Card title={submitted ? 'Your Confidence Picks ✓' : 'Submit Your Confidence Picks'}>
+            <SlatePicksForm
+              betstravaganzaId={bz.id}
+              slateGames={slateGames as any}
+              existingPicks={myPicks.map((p: any) => ({
+                slateGameId: p.slate_game_id,
+                teamPicked: p.team_picked,
+                confidenceRank: p.confidence_rank,
+              }))}
+              slateLockTime={(bz as any).start_datetime ?? null}
+              confidenceMultiplier={Number(bz.confidence_multiplier)}
+            />
+          </Card>
+        )
+      })()}
 
       {/* Game cards */}
       <div className="space-y-4">
@@ -214,38 +238,40 @@ export default async function SlatePage() {
                 </div>
               </div>
 
-              {/* Two-sided pick display */}
-              <div className="px-4 py-3 flex flex-col gap-1.5">
-                {gamePicks.length === 0 ? (
-                  <p className="text-xs text-muted italic">No picks yet.</p>
-                ) : (
-                  <>
-                    <SlateSideRow
-                      side="AWAY"
-                      team={game.away_team}
-                      spread={game.spread != null ? -game.spread : null}
-                      pickers={awayPickers}
-                      correct={homeWon === false}
-                      resultExists={!!gameResult}
-                    />
-                    <SlateSideRow
-                      side="HOME"
-                      team={game.home_team}
-                      spread={game.spread}
-                      pickers={homePickers}
-                      correct={homeWon === true}
-                      resultExists={!!gameResult}
-                    />
-                  </>
-                )}
-              </div>
+              {/* Two-sided pick display — hidden until revealed */}
+              {revealed && (
+                <div className="px-4 py-3 flex flex-col gap-1.5">
+                  {gamePicks.length === 0 ? (
+                    <p className="text-xs text-muted italic">No picks yet.</p>
+                  ) : (
+                    <>
+                      <SlateSideRow
+                        side="AWAY"
+                        team={game.away_team}
+                        spread={game.spread != null ? -game.spread : null}
+                        pickers={awayPickers}
+                        correct={homeWon === false}
+                        resultExists={!!gameResult}
+                      />
+                      <SlateSideRow
+                        side="HOME"
+                        team={game.home_team}
+                        spread={game.spread}
+                        pickers={homePickers}
+                        correct={homeWon === true}
+                        resultExists={!!gameResult}
+                      />
+                    </>
+                  )}
+                </div>
+              )}
             </Card>
           )
         })}
       </div>
 
-      {/* Summary row — total slate bonus per player */}
-      {users.length > 0 && slateGames.length > 0 && (
+      {/* Summary row — total slate bonus per player (hidden until revealed) */}
+      {revealed && users.length > 0 && slateGames.length > 0 && (
         <Card>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Slate Bonus Totals</h2>
           <div className="divide-y divide-border/30">

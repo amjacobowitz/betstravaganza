@@ -20,8 +20,8 @@ export function RevealToggle({ bzId, revealed }: { bzId: string; revealed: boole
     <div className="space-y-2">
       <p className="text-sm text-muted">
         {revealed
-          ? 'Players can see all pages (leaderboard, picks, draft, market, schedule).'
-          : 'Players can only see the Slate page. Toggle to reveal everything.'}
+          ? 'Everyone can see all pages (leaderboard, picks, draft, schedule).'
+          : 'Everyone (including admin) sees only Slate + Admin. Toggle to reveal everything.'}
       </p>
       {error && <p className="text-xs text-danger">{error}</p>}
       <Button

@@ -14,7 +14,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   ])
 
   const isAdmin = !!profile?.is_admin
-  const revealed = isAdmin || !!(bz as any)?.revealed
+  const revealed = !!(bz as any)?.revealed
 
   return (
     <div className="flex min-h-dvh flex-col">

@@ -173,12 +173,12 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
 
   const isClashable = (e: Event) => e.bet_options.length === 2
 
-  const optionRows = (e: Event, showClash: boolean) =>
-    e.bet_options.map(o => `<tr>
+  const blankRows = (count: number, showClash: boolean) =>
+    Array.from({ length: count }, () => `<tr>
   <td style="text-align:center;width:24px"><input type="checkbox"></td>
-  <td>${o.label}</td>
-  <td class="odds">${formatOdds(o.odds)}</td>
-  ${showClash ? `<td style="text-align:center;width:40px">${isClashable(e) ? '<input type="checkbox">' : ''}</td>` : ''}
+  <td style="border-bottom:1px solid #bbb">&nbsp;</td>
+  <td class="odds" style="border-bottom:1px solid #bbb">&nbsp;</td>
+  ${showClash ? `<td style="text-align:center;width:40px"><input type="checkbox"></td>` : ''}
   <td style="width:90px;border-bottom:1px solid #ccc">&nbsp;</td>
 </tr>`).join('')
 
@@ -237,7 +237,7 @@ ${required.map(e => `
 <thead><tr>
   <th class="center">✓</th><th>Pick</th><th>Odds</th><th>Notes</th>
 </tr></thead>
-<tbody>${optionRows(e, false)}</tbody>
+<tbody>${blankRows(e.bet_options.length, false)}</tbody>
 </table>`).join('')}
 </div>
 
@@ -259,7 +259,7 @@ ${optional.map(e => `
 <thead><tr>
   <th class="center">✓</th><th>Pick</th><th>Odds</th><th class="center">⚔️</th><th>Notes</th>
 </tr></thead>
-<tbody>${optionRows(e, true)}</tbody>
+<tbody>${blankRows(e.bet_options.length, true)}</tbody>
 </table>`).join('')}
 </div>
 </body></html>`
