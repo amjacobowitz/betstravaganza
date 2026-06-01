@@ -95,18 +95,18 @@ export function ProfileForm({ name, teamName, phone, nickname, birdImageUrl, bir
           </div>
         )}
 
-        {/* Editable: nickname only */}
+        {/* Editable: team motto */}
         <Input
           name="nickname"
-          label="Nickname"
+          label="Team Motto"
           defaultValue={nickname}
-          placeholder="e.g. The Hawk, Big Bird..."
+          placeholder="e.g. No mercy, Built different..."
         />
 
         {error && <p className="text-sm text-danger">{error}</p>}
-        {success && <p className="text-sm text-accent">Nickname saved.</p>}
+        {success && <p className="text-sm text-accent">Team motto saved.</p>}
         <Button type="submit" loading={loading} className="w-full">
-          Save Nickname
+          Save Motto
         </Button>
       </form>
 

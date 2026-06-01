@@ -81,7 +81,7 @@ export default async function PicksPage({
   // Fetch all users for the team selector
   const { data: allUsersData } = await supabase
     .from('users')
-    .select('id, name, team_name')
+    .select('id, name, team_name, nickname')
     .order('team_name')
 
   const allUsers = allUsersData ?? []
@@ -297,6 +297,7 @@ export default async function PicksPage({
               : viewUser
             const teamName = displayUser?.team_name ?? displayUser?.name ?? 'Unknown'
             const playerName = displayUser?.name
+            const motto = (displayUser as any)?.nickname ?? null
             return (
               <div className="flex items-center gap-3">
                 <BirdAvatar teamName={displayUser?.team_name} size={48} />
@@ -307,6 +308,7 @@ export default async function PicksPage({
                   {playerName && teamName !== playerName && (
                     <p className="text-sm text-muted">{playerName}</p>
                   )}
+                  {motto && <p className="text-xs text-accent/70 italic">"{motto}"</p>}
                 </div>
               </div>
             )
@@ -315,10 +317,10 @@ export default async function PicksPage({
           {/* Bankroll summary */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card className="text-center p-3">
-              <div className={`text-2xl font-bold font-mono ${delta >= 0 ? 'text-win' : 'text-loss'}`}>
-                {formatMoney(delta)}
+              <div className={`text-2xl font-bold font-mono ${grandTotal >= Number(bz.starting_bankroll) ? 'text-win' : 'text-loss'}`}>
+                ${grandTotal.toFixed(0)}
               </div>
-              <div className="text-xs text-muted mt-1">Total P/L</div>
+              <div className="text-xs text-muted mt-1">Total</div>
             </Card>
             <Card className="text-center p-3">
               <div className="text-2xl font-bold font-mono text-white">

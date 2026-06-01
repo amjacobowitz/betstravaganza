@@ -5,10 +5,6 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BirdAvatar } from '@/components/ui/BirdAvatar'
 
-function formatMoney(n: number) {
-  const sign = n >= 0 ? '+' : ''
-  return `${sign}$${Math.abs(n).toFixed(0)}`
-}
 
 export default async function LeaderboardPage() {
   const bz = await getActive()
@@ -50,7 +46,8 @@ export default async function LeaderboardPage() {
             </thead>
             <tbody>
               {entries.map((e, i) => {
-                const delta = e.total - Number(bz.starting_bankroll)
+                const startingBankroll = Number(bz.starting_bankroll)
+                const isProfit = e.total >= startingBankroll
                 return (
                   <tr key={e.userId} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors">
                     <td className="px-4 py-3 font-mono">
@@ -72,6 +69,7 @@ export default async function LeaderboardPage() {
                         <div>
                           <div className="font-semibold text-white">{e.teamName}</div>
                           <div className="text-xs text-muted">{e.name}</div>
+                          {e.motto && <div className="text-xs text-accent/70 italic">"{e.motto}"</div>}
                         </div>
                       </Link>
                     </td>
@@ -94,8 +92,8 @@ export default async function LeaderboardPage() {
                       {e.bonuses > 0 ? `+$${e.bonuses}` : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className={`font-bold font-mono text-base ${delta >= 0 ? 'text-win' : 'text-loss'}`}>
-                        {formatMoney(delta)}
+                      <span className={`font-bold font-mono text-base ${isProfit ? 'text-win' : 'text-loss'}`}>
+                        ${e.total.toFixed(0)}
                       </span>
                     </td>
                   </tr>

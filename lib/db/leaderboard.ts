@@ -14,6 +14,7 @@ export interface LeaderboardEntry {
   userId: string
   name: string
   teamName: string
+  motto: string | null
   bankroll: number
   confidenceBonus: number
   bonuses: number
@@ -41,7 +42,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     { data: bonusesData },
   ] = await Promise.all([
     supabase.from('betstravaganza').select('starting_bankroll, stake_amount, confidence_multiplier').eq('id', betstravaganzaId).single(),
-    supabase.from('users').select('id, name, team_name'),
+    supabase.from('users').select('id, name, team_name, nickname'),
     supabase.from('draft_picks').select('*').eq('betstravaganza_id', betstravaganzaId),
     supabase.from('bet_options').select('*'),
     supabase.from('events').select('*').eq('betstravaganza_id', betstravaganzaId),
@@ -149,6 +150,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
       userId: user.id,
       name: user.name,
       teamName: user.team_name,
+      motto: (user as any).nickname ?? null,
       bankroll: br.total,
       confidenceBonus: cb,
       bonuses,
