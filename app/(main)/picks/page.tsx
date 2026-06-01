@@ -103,7 +103,7 @@ export default async function PicksPage({
     supabase.from('results').select('*'),
     supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', viewUserId),
-    supabase.from('slate_results').select('*'),
+    supabase.from('slate_results').select('*, slate_games(spread)'),
     supabase.from('bonuses').select('*').eq('betstravaganza_id', bz.id).eq('user_id', viewUserId).order('created_at'),
   ])
 
@@ -177,6 +177,7 @@ export default async function PicksPage({
     slateGameId: r.slate_game_id,
     homeScore: Number(r.home_score),
     awayScore: Number(r.away_score),
+    spread: r.slate_games?.spread != null ? Number(r.slate_games.spread) : null,
     resultDisplay: r.result_display ?? '',
   }))
 

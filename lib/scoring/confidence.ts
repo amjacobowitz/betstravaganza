@@ -18,6 +18,13 @@ export function computeConfidenceBonus(picks: SlatePick[], results: SlateResult[
 }
 
 function determineSlateWinner(result: SlateResult): 'home' | 'away' | 'push' {
+  if (result.spread != null) {
+    // spread is home team's line (e.g. -3.5 means home favored by 3.5)
+    const adjustedHome = result.homeScore + result.spread
+    if (adjustedHome > result.awayScore) return 'home'
+    if (adjustedHome < result.awayScore) return 'away'
+    return 'push'
+  }
   if (result.homeScore > result.awayScore) return 'home'
   if (result.awayScore > result.homeScore) return 'away'
   return 'push'

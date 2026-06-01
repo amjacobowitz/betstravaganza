@@ -11,11 +11,12 @@ const makePick = (gameId: string, team: 'home' | 'away', rank: number): SlatePic
   submittedAt: new Date(),
 })
 
-const makeResult = (gameId: string, winner: 'home' | 'away' | 'push'): SlateResult => ({
+const makeResult = (gameId: string, winner: 'home' | 'away' | 'push', spread?: number): SlateResult => ({
   id: `result-${gameId}`,
   slateGameId: gameId,
   homeScore: winner === 'home' ? 5 : 3,
   awayScore: winner === 'away' ? 5 : 3,
+  spread: spread ?? null,
   resultDisplay: `${winner} wins`,
 })
 
@@ -78,5 +79,34 @@ describe('computeConfidenceBonus', () => {
     )
     // Max: (15+14+...+1) × 3 = 120 × 3 = 360
     expect(computeConfidenceBonus(picks, results)).toBe(360)
+  })
+
+  describe('spread-based winner determination', () => {
+    it('home covers when winning by more than spread', () => {
+      // home wins 28-24, spread -3.5 → adjusted home 24.5 > 24 → home covers
+      const pick = makePick('g1', 'home', 5)
+      const result: SlateResult = { id: 'r1', slateGameId: 'g1', homeScore: 28, awayScore: 24, spread: -3.5, resultDisplay: '' }
+      expect(computeConfidenceBonus([pick], [result])).toBe(15)
+    })
+
+    it('away covers when home does not beat spread', () => {
+      // home wins 27-24, spread -3.5 → adjusted home 23.5 < 24 → away covers
+      const pick = makePick('g1', 'away', 5)
+      const result: SlateResult = { id: 'r1', slateGameId: 'g1', homeScore: 27, awayScore: 24, spread: -3.5, resultDisplay: '' }
+      expect(computeConfidenceBonus([pick], [result])).toBe(15)
+    })
+
+    it('push when adjusted scores are exactly equal', () => {
+      // home wins 24-20, spread -4 → adjusted home 20 == 20 → push
+      const pick = makePick('g1', 'home', 5)
+      const result: SlateResult = { id: 'r1', slateGameId: 'g1', homeScore: 24, awayScore: 20, spread: -4, resultDisplay: '' }
+      expect(computeConfidenceBonus([pick], [result])).toBe(0)
+    })
+
+    it('falls back to straight-up when spread is null', () => {
+      const pick = makePick('g1', 'home', 5)
+      const result: SlateResult = { id: 'r1', slateGameId: 'g1', homeScore: 5, awayScore: 3, spread: null, resultDisplay: '' }
+      expect(computeConfidenceBonus([pick], [result])).toBe(15)
+    })
   })
 })

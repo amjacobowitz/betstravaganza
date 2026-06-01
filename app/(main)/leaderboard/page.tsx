@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { getActive } from '@/lib/db/betstravaganza'
 import { getLeaderboard } from '@/lib/db/leaderboard'
 import { Card } from '@/components/ui/Card'
@@ -66,13 +67,13 @@ export default async function LeaderboardPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
+                      <Link href={`/picks?user=${e.userId}`} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
                         <BirdAvatar teamName={e.teamName} size={36} />
                         <div>
                           <div className="font-semibold text-white">{e.teamName}</div>
                           <div className="text-xs text-muted">{e.name}</div>
                         </div>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-sm">
                       <span className="text-win">{e.wins}</span>

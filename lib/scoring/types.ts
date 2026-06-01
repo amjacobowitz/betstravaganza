@@ -51,6 +51,7 @@ export interface SlateResult {
   slateGameId: string
   homeScore: number
   awayScore: number
+  spread: number | null
   resultDisplay: string
 }
 

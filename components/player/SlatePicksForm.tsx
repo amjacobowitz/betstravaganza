@@ -331,11 +331,16 @@ export function SlatePicksForm({
 
       {/* Instructions */}
       {!locked && (
-        <div className="flex items-center justify-between text-xs text-muted">
-          <span>Use arrows or drag to rank — <strong className="text-white">top = most confident</strong></span>
-          <span className="text-accent font-mono font-semibold">
-            Up to +${maxPotential} if all correct
-          </span>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs text-muted">
+            <span>Use arrows or drag to rank — <strong className="text-white">top = most confident</strong></span>
+            <span className="text-accent font-mono font-semibold">
+              Up to +${maxPotential} if all correct
+            </span>
+          </div>
+          <p className="text-xs text-muted/70">
+            Winners are determined <strong className="text-white">against the spread</strong> where a spread is listed.
+          </p>
         </div>
       )}
 

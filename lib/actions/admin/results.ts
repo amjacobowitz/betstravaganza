@@ -21,6 +21,15 @@ export async function upsertResult(formData: FormData) {
     const homeScore            = formData.get('homeScore') ? Number(formData.get('homeScore')) : null
     const awayScore            = formData.get('awayScore') ? Number(formData.get('awayScore')) : null
 
+    // If everything is cleared, delete the result (uncomplete the event)
+    if (winnerBetOptionIds.length === 0 && homeScore === null && awayScore === null) {
+      const { error } = await supabase.from('results').delete().eq('event_id', eventId)
+      if (error) return { error: error.message }
+      revalidatePath(`/admin/${bzId}/results`)
+      revalidatePath('/leaderboard')
+      return { ok: true }
+    }
+
     // Generate result_display from winner labels
     let resultDisplay = 'Push'
     if (winnerBetOptionIds.length > 0) {

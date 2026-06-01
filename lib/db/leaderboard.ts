@@ -47,7 +47,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     supabase.from('events').select('*').eq('betstravaganza_id', betstravaganzaId),
     supabase.from('results').select('*'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', betstravaganzaId),
-    supabase.from('slate_results').select('*'),
+    supabase.from('slate_results').select('*, slate_games(spread)'),
     supabase.from('bonuses').select('*').eq('betstravaganza_id', betstravaganzaId),
   ])
 
@@ -100,6 +100,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     slateGameId: r.slate_game_id,
     homeScore: Number(r.home_score),
     awayScore: Number(r.away_score),
+    spread: r.slate_games?.spread != null ? Number(r.slate_games.spread) : null,
     resultDisplay: r.result_display ?? '',
   }))
 
@@ -195,6 +196,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
         slateGameId: r.slate_game_id,
         homeScore: Number(r.home_score),
         awayScore: Number(r.away_score),
+        spread: r.slate_games?.spread != null ? Number(r.slate_games.spread) : null,
         resultDisplay: r.result_display ?? '',
       }))
 
