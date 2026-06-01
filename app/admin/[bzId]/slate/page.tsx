@@ -21,12 +21,15 @@ export default async function SlatePage({
   ])
 
   const gameCount = slateGames?.length ?? 0
-  const submittedCount = (users ?? []).filter(u =>
-    (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length === gameCount && gameCount > 0
-  ).length
-  const pendingUsers = (users ?? []).filter(u =>
-    (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length < gameCount
-  )
+
+  const userPickCount = (uid: string) =>
+    (slatePicks ?? []).filter((p: any) => p.user_id === uid).length
+
+  const submittedUsers = (users ?? []).filter(u => gameCount > 0 && userPickCount(u.id) === gameCount)
+  const partialUsers   = (users ?? []).filter(u => userPickCount(u.id) > 0 && userPickCount(u.id) < gameCount)
+  const notStartedUsers = (users ?? []).filter(u => userPickCount(u.id) === 0)
+  const submittedCount = submittedUsers.length
+  const pendingUsers = [...partialUsers, ...notStartedUsers]
 
   return (
     <div className="space-y-4">
@@ -37,19 +40,33 @@ export default async function SlatePage({
         </span>
       </div>
 
-      {gameCount > 0 && pendingUsers.length > 0 && (
-        <div className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 space-y-1">
-          <p className="text-xs font-semibold text-accent uppercase tracking-wider mb-2">Picks Remaining</p>
-          {pendingUsers.map(u => {
-            const picked = (slatePicks ?? []).filter((p: any) => p.user_id === u.id).length
-            const remaining = gameCount - picked
+      {gameCount > 0 && (
+        <div className="rounded-lg border border-border bg-surface px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wider">Submission Status</p>
+            <span className="text-xs text-muted font-mono">{submittedCount}/{(users ?? []).length} complete</span>
+          </div>
+          {submittedUsers.map(u => (
+            <div key={u.id} className="flex items-center justify-between text-sm">
+              <span className="text-white">{u.team_name || u.name}</span>
+              <span className="text-win font-semibold text-xs">✓ All {gameCount}</span>
+            </div>
+          ))}
+          {partialUsers.map(u => {
+            const picked = userPickCount(u.id)
             return (
               <div key={u.id} className="flex items-center justify-between text-sm">
                 <span className="text-white">{u.team_name || u.name}</span>
-                <span className="text-accent font-mono font-semibold">{remaining} remaining</span>
+                <span className="text-accent-2 font-mono font-semibold text-xs">{picked}/{gameCount}</span>
               </div>
             )
           })}
+          {notStartedUsers.map(u => (
+            <div key={u.id} className="flex items-center justify-between text-sm">
+              <span className="text-muted">{u.team_name || u.name}</span>
+              <span className="text-muted text-xs">not started</span>
+            </div>
+          ))}
         </div>
       )}
 

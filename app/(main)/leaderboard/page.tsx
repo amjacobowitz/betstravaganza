@@ -28,6 +28,8 @@ export default async function LeaderboardPage() {
     getMarketHistory(bz.id),
   ])
 
+  const hasRankChanges = entries.some(e => e.rankChange != null && e.rankChange !== 0)
+
   return (
     <div className="space-y-4">
       <AutoRefresh intervalMs={30_000} />
@@ -37,6 +39,14 @@ export default async function LeaderboardPage() {
           {bz.status.toUpperCase()}
         </Badge>
       </div>
+
+      {hasRankChanges && (
+        <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-sm text-accent">
+          <span className="text-base">↑↓</span>
+          <span className="font-semibold">Standings just updated</span>
+          <span className="text-muted text-xs">— rankings shifted in the last few minutes</span>
+        </div>
+      )}
 
       {/* Leaderboard table */}
       <Card className="overflow-hidden p-0">

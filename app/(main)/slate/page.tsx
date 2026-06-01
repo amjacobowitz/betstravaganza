@@ -2,6 +2,7 @@ import { getActive } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
+import { LockCountdown } from '@/components/ui/LockCountdown'
 import { sportEmoji } from '@/lib/utils/sports'
 
 function formatTime(iso: string) {
@@ -160,7 +161,12 @@ export default async function SlatePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-white">Slate Overview</h1>
-        <div className="text-sm text-muted">{bz.name}</div>
+        <div className="flex items-center gap-3">
+          {(bz as any).start_datetime && new Date() < new Date((bz as any).start_datetime) && (
+            <LockCountdown lockTime={(bz as any).start_datetime} />
+          )}
+          <div className="text-sm text-muted">{bz.name}</div>
+        </div>
       </div>
 
       {slateGames.length === 0 && (

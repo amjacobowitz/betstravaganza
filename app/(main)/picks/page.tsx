@@ -504,13 +504,59 @@ export default async function PicksPage({
                 </Card>
               )}
 
-              {/* Own picks — link to Slate page to submit */}
-              {isOwnPicks && (
+              {/* Own picks — show ranked list with link to Slate to update */}
+              {isOwnPicks && mySlatePicks.length > 0 && (
+                <Card className="overflow-hidden p-0">
+                  <div className="divide-y divide-border/50">
+                    {[...mySlatePicks]
+                      .sort((a, b) => b.confidenceRank - a.confidenceRank)
+                      .map(sp => {
+                        const game = slateGames.find((g: any) => g.id === sp.slateGameId) as any
+                        if (!game) return null
+                        const pickedTeam = sp.teamPicked === 'home' ? game.home_team : game.away_team
+                        const result = slateResults.find(r => r.slateGameId === sp.slateGameId)
+                        let correct: boolean | null = null
+                        let bonus = 0
+                        if (result) {
+                          const homeWon = result.homeScore > result.awayScore
+                          correct = (sp.teamPicked === 'home' && homeWon) || (sp.teamPicked === 'away' && !homeWon)
+                          bonus = correct ? sp.confidenceRank * Number(bz.confidence_multiplier) : 0
+                        }
+                        return (
+                          <div key={sp.id} className="flex items-center gap-3 px-4 py-2.5">
+                            <span className="w-5 text-right font-mono text-xs font-bold text-accent-2">
+                              #{slateGames.length - sp.confidenceRank + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-white">{pickedTeam}</div>
+                              <div className="text-xs text-muted">{game.away_team} @ {game.home_team}</div>
+                            </div>
+                            {result ? (
+                              <div className="text-right">
+                                <div className={`text-xs font-bold ${correct ? 'text-win' : 'text-loss'}`}>
+                                  {correct ? 'WIN' : 'LOSS'}
+                                </div>
+                                <div className={`text-sm font-mono ${bonus > 0 ? 'text-win' : 'text-muted'}`}>
+                                  {bonus > 0 ? `+$${bonus}` : '$0'}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted">pending</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                  <div className="border-t border-border/30 px-4 py-2 text-xs text-muted">
+                    <Link href="/slate" className="text-accent hover:text-white transition-colors">Update picks on Slate page →</Link>
+                  </div>
+                </Card>
+              )}
+
+              {/* No picks yet — prompt to submit */}
+              {isOwnPicks && mySlatePicks.length === 0 && (
                 <Card className="text-sm text-muted">
-                  {mySlatePicks.length === slateGames.length
-                    ? <span className="text-win font-medium">✓ Picks submitted. Visit the <a href="/slate" className="underline hover:text-white transition-colors">Slate page</a> to update them.</span>
-                    : <span>Submit your confidence picks on the <a href="/slate" className="underline hover:text-white transition-colors text-accent">Slate page</a>.</span>
-                  }
+                  <span>Submit your confidence picks on the <Link href="/slate" className="underline hover:text-white transition-colors text-accent">Slate page</Link>.</span>
                 </Card>
               )}
             </div>
