@@ -167,6 +167,107 @@ ${optional.map(e => `
   if (w) { w.document.write(html); w.document.close(); w.print() }
 }
 
+function printMyPicksRoster(bzName: string, events: Event[]) {
+  const required = events.filter(e => e.category === 'required')
+  const optional = events.filter(e => e.category === 'optional')
+
+  const isClashable = (e: Event) => e.bet_options.length === 2
+
+  const optionRows = (e: Event, showClash: boolean) =>
+    e.bet_options.map(o => `<tr>
+  <td style="text-align:center;width:24px"><input type="checkbox"></td>
+  <td>${o.label}</td>
+  <td class="odds">${formatOdds(o.odds)}</td>
+  ${showClash ? `<td style="text-align:center;width:40px">${isClashable(e) ? '<input type="checkbox">' : ''}</td>` : ''}
+  <td style="width:90px;border-bottom:1px solid #ccc">&nbsp;</td>
+</tr>`).join('')
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<title>My Picks — ${bzName}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; margin: 16px 20px; color: #000; }
+  h1 { font-size: 17px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 10px; margin-bottom: 10px; }
+  .identity { display: flex; gap: 24px; margin-bottom: 14px; }
+  .field { flex: 1; }
+  .field label { font-size: 9px; text-transform: uppercase; color: #888; display: block; margin-bottom: 2px; }
+  .field .line { border-bottom: 1.5px solid #333; height: 18px; }
+  h2 { font-size: 13px; margin: 14px 0 4px; padding-bottom: 2px; }
+  h2.req { border-bottom: 2px solid #1d4ed8; }
+  h2.opt { border-bottom: 2px solid #7e22ce; }
+  h3 { font-size: 11px; margin: 9px 0 2px; font-weight: bold; color: #222; }
+  .event-note { font-size: 9px; color: #777; font-weight: normal; margin-left: 5px; }
+  .clash-badge { font-size: 9px; background: #fef9c3; color: #854d0e; border: 1px solid #fcd34d;
+                 padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+  col.col-check { width: 26px; }
+  col.col-pick { width: auto; }
+  col.col-odds { width: 44px; }
+  col.col-clash { width: 40px; }
+  col.col-notes { width: 90px; }
+  th { text-align: left; font-size: 9px; text-transform: uppercase; color: #888;
+       border-bottom: 1px solid #ccc; padding: 2px 4px; }
+  th.center { text-align: center; }
+  td { padding: 3px 4px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .odds { font-family: monospace; font-weight: bold; }
+  .section { page-break-inside: avoid; }
+  .instructions { font-size: 9px; color: #555; margin-bottom: 6px; background: #f8f8f8;
+                  border: 1px solid #e0e0e0; padding: 4px 8px; border-radius: 4px; }
+  @media print { body { margin: 8px 12px; } input[type=checkbox] { accent-color: #7c3aed; } }
+</style>
+</head>
+<body>
+<h1>My Picks — ${bzName}</h1>
+<div class="sub">Fill in your picks as the draft progresses. Check off winners during the weekend.</div>
+
+<div class="identity">
+  <div class="field"><label>Team Name</label><div class="line"></div></div>
+  <div class="field"><label>Player Name</label><div class="line"></div></div>
+</div>
+
+<div class="section">
+<h2 class="req">REQUIRED PICKS <span class="event-note">(must pick one per event — no choice in snake draft)</span></h2>
+${required.map(e => `
+<h3>${e.name} <span class="event-note">· ${e.sport}</span></h3>
+<table>
+<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-notes"></colgroup>
+<thead><tr>
+  <th class="center">✓</th><th>Pick</th><th>Odds</th><th>Notes</th>
+</tr></thead>
+<tbody>${optionRows(e, false)}</tbody>
+</table>`).join('')}
+</div>
+
+<div class="section">
+<h2 class="opt">OPTIONAL PICKS
+  <span class="event-note">(2 picks must be ⚔️ Clashes — opposing sides of same event with another player)</span>
+</h2>
+<div class="instructions">
+  ⚔️ <strong>Clash:</strong> When two players pick opposite sides of the same event, it's a Clash.
+  You need at least 2 Clash picks in your roster. Check the ⚔️ column if this pick is a Clash.
+</div>
+${optional.map(e => `
+<h3>${e.name}
+  <span class="event-note">· ${e.sport} · ${e.bet_type.replace('_',' ')}</span>
+  ${isClashable(e) ? '<span class="clash-badge">⚔️ Clashable</span>' : ''}
+</h3>
+<table>
+<colgroup><col class="col-check"><col class="col-pick"><col class="col-odds"><col class="col-clash"><col class="col-notes"></colgroup>
+<thead><tr>
+  <th class="center">✓</th><th>Pick</th><th>Odds</th><th class="center">⚔️</th><th>Notes</th>
+</tr></thead>
+<tbody>${optionRows(e, true)}</tbody>
+</table>`).join('')}
+</div>
+</body></html>`
+
+  const w = window.open('', '_blank')
+  if (w) { w.document.write(html); w.document.close(); w.print() }
+}
+
 function printSchedule(bzName: string, events: Event[], slateGames: SlateGame[]) {
   const allItems = [
     ...events.map(e => ({
@@ -238,7 +339,7 @@ ${allItems.map(item => `<tr>
 export function PrintPDFs({ bzName, events, slateGames, draftPicks = [], users = [] }: Props) {
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-border bg-surface p-6 space-y-3">
           <div>
             <h2 className="font-bold text-white">Draft Sheet</h2>
@@ -268,6 +369,21 @@ export function PrintPDFs({ bzName, events, slateGames, draftPicks = [], users =
             className="w-full"
           >
             🖨️ Print Schedule
+          </Button>
+        </div>
+
+        <div className="rounded-xl border border-accent/20 bg-surface p-6 space-y-3">
+          <div>
+            <h2 className="font-bold text-white">My Picks <span className="text-xs font-normal text-accent ml-1">Roster Sheet</span></h2>
+            <p className="text-sm text-muted mt-1">
+              Generic roster sheet for players to fill in during the draft. Shows required + optional picks with clash (⚔️) markers.
+            </p>
+          </div>
+          <Button
+            onClick={() => printMyPicksRoster(bzName, events)}
+            className="w-full"
+          >
+            🖨️ Print My Picks
           </Button>
         </div>
       </div>

@@ -228,6 +228,20 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Event filter state — all enabled by default
+  const allCategories = ['required', 'optional'] as const
+  const allBetTypes   = ['odds', 'spread', 'no_odds'] as const
+  const allSports     = [...new Set(initialEvents.map(e => e.sport))].sort()
+  const [activeCategories, setActiveCategories] = useState<Set<string>>(new Set(allCategories))
+  const [activeBetTypes,   setActiveBetTypes]   = useState<Set<string>>(new Set(allBetTypes))
+  const [activeSports,     setActiveSports]      = useState<Set<string>>(new Set(allSports))
+
+  function toggleFilter<T extends string>(set: Set<T>, value: T, setter: (s: Set<T>) => void) {
+    const next = new Set(set)
+    if (next.has(value)) { next.delete(value) } else { next.add(value) }
+    setter(next)
+  }
+
   // Odds fetch state
   const [oddsFetching, setOddsFetching] = useState(false)
   const [oddsFetchError, setOddsFetchError] = useState<string | null>(null)
@@ -471,84 +485,148 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
 
       {tab === 'events' && (
         <div className="space-y-4">
-        <div className="space-y-2">
-          {events.map(event => (
-            <div key={event.id} className="rounded-xl border border-border bg-surface overflow-hidden">
-              {/* Event header */}
-              <div className="flex items-center gap-3 px-4 py-3">
-                <button
-                  className="flex-1 text-left"
-                  onClick={() => setExpandedEventId(expandedEventId === event.id ? null : event.id)}
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-white text-sm">{event.name}</span>
-                    <Badge variant={event.category === 'required' ? 'required' : 'default'}>
-                      {event.category.toUpperCase()}
-                    </Badge>
-                    <span className="text-xs text-muted">{event.sport} · {event.bet_type.replace('_', ' ')}</span>
-                    <span className="text-xs text-muted">{event.bet_options.length} options</span>
-                  </div>
+
+          {/* Filter chips */}
+          <div className="space-y-2">
+            {/* Category */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted w-16 shrink-0">Category</span>
+              {allCategories.map(c => (
+                <button key={c}
+                  onClick={() => toggleFilter(activeCategories, c, setActiveCategories)}
+                  className={`rounded-full px-3 py-0.5 text-xs font-semibold transition-colors border ${
+                    activeCategories.has(c)
+                      ? c === 'required' ? 'bg-required/20 border-required/50 text-required' : 'bg-accent/15 border-accent/40 text-accent'
+                      : 'bg-surface-2 border-border text-muted'
+                  }`}>
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
                 </button>
-                <div className="flex gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" onClick={() => {
-                    setEditingEventId(event.id)
-                    setExpandedEventId(event.id)
-                  }}>Edit</Button>
-                  <Button variant="danger" size="sm"
-                    loading={deletingId === event.id}
-                    onClick={() => handleDeleteEvent(event.id)}>Delete</Button>
-                </div>
+              ))}
+            </div>
+            {/* Bet type */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted w-16 shrink-0">Bet type</span>
+              {allBetTypes.map(b => (
+                <button key={b}
+                  onClick={() => toggleFilter(activeBetTypes, b, setActiveBetTypes)}
+                  className={`rounded-full px-3 py-0.5 text-xs font-semibold transition-colors border ${
+                    activeBetTypes.has(b) ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-surface-2 border-border text-muted'
+                  }`}>
+                  {b.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            {/* Sport */}
+            {allSports.length > 1 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted w-16 shrink-0">Sport</span>
+                {allSports.map(s => (
+                  <button key={s}
+                    onClick={() => toggleFilter(activeSports, s, setActiveSports)}
+                    className={`rounded-full px-3 py-0.5 text-xs font-semibold transition-colors border ${
+                      activeSports.has(s) ? 'bg-accent/15 border-accent/40 text-accent' : 'bg-surface-2 border-border text-muted'
+                    }`}>
+                    {sportEmoji(s)} {s}
+                  </button>
+                ))}
               </div>
+            )}
+          </div>
 
-              {/* Edit form */}
-              {editingEventId === event.id && (
-                <div className="px-4 pb-4">
-                  <EventForm bzId={betstravaganzaId} event={event} onDone={() => { setEditingEventId(null); reload() }} />
+          {/* Events grouped by category */}
+          {allCategories.filter(c => activeCategories.has(c)).map(category => {
+            const categoryEvents = events.filter(e =>
+              e.category === category &&
+              activeBetTypes.has(e.bet_type) &&
+              activeSports.has(e.sport)
+            )
+            if (categoryEvents.length === 0) return null
+            return (
+              <div key={category} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${category === 'required' ? 'text-required' : 'text-accent'}`}>
+                    {category} events
+                  </span>
+                  <span className="text-xs text-muted">({categoryEvents.length})</span>
                 </div>
-              )}
 
-              {/* Bet options */}
-              {expandedEventId === event.id && editingEventId !== event.id && (
-                <div className="border-t border-border/50 px-4 pb-4 pt-3 space-y-2">
-                  <p className="text-xs text-muted uppercase tracking-wider font-semibold">Bet Options</p>
-                  {event.bet_options.map(opt => (
-                    <div key={opt.id}>
-                      {editingOptionId === opt.id ? (
-                        <BetOptionForm eventId={event.id} option={opt} onDone={() => { setEditingOptionId(null); reload() }} />
-                      ) : (
-                        <div className="flex items-center gap-3 rounded-lg px-3 py-2 bg-surface-2/50 border border-border/30">
-                          <div className="flex-1 text-sm">
-                            <span className="text-white font-medium">{opt.label}</span>
-                            <span className="ml-3 font-mono text-xs text-accent-2">
-                              {opt.odds !== null ? (opt.odds > 0 ? `+${opt.odds}` : `${opt.odds}`) : 'no odds'}
-                            </span>
-                            {opt.max_drafts > 1 && (
-                              <span className="ml-2 text-xs text-muted">max {opt.max_drafts}</span>
-                            )}
-                            {opt.odds_source === 'auto' && (
-                              <span className="ml-2 text-xs text-clash">auto</span>
+                {categoryEvents.map(event => (
+                  <div key={event.id} className="rounded-xl border border-border bg-surface overflow-hidden">
+                    {/* Event header */}
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <button
+                        className="flex-1 text-left"
+                        onClick={() => setExpandedEventId(expandedEventId === event.id ? null : event.id)}
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-white text-sm">{event.name}</span>
+                          <span className="text-xs text-muted">{sportEmoji(event.sport)} {event.sport} · {event.bet_type.replace('_', ' ')}</span>
+                          <span className="text-xs text-muted">{event.bet_options.length} options</span>
+                        </div>
+                      </button>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setEditingEventId(event.id)
+                          setExpandedEventId(event.id)
+                        }}>Edit</Button>
+                        <Button variant="danger" size="sm"
+                          loading={deletingId === event.id}
+                          onClick={() => handleDeleteEvent(event.id)}>Delete</Button>
+                      </div>
+                    </div>
+
+                    {/* Edit form */}
+                    {editingEventId === event.id && (
+                      <div className="px-4 pb-4">
+                        <EventForm bzId={betstravaganzaId} event={event} onDone={() => { setEditingEventId(null); reload() }} />
+                      </div>
+                    )}
+
+                    {/* Bet options */}
+                    {expandedEventId === event.id && editingEventId !== event.id && (
+                      <div className="border-t border-border/50 px-4 pb-4 pt-3 space-y-2">
+                        <p className="text-xs text-muted uppercase tracking-wider font-semibold">Bet Options</p>
+                        {event.bet_options.map(opt => (
+                          <div key={opt.id}>
+                            {editingOptionId === opt.id ? (
+                              <BetOptionForm eventId={event.id} option={opt} onDone={() => { setEditingOptionId(null); reload() }} />
+                            ) : (
+                              <div className="flex items-center gap-3 rounded-lg px-3 py-2 bg-surface-2/50 border border-border/30">
+                                <div className="flex-1 text-sm">
+                                  <span className="text-white font-medium">{opt.label}</span>
+                                  <span className="ml-3 font-mono text-xs text-accent-2">
+                                    {opt.odds !== null ? (opt.odds > 0 ? `+${opt.odds}` : `${opt.odds}`) : 'no odds'}
+                                  </span>
+                                  {opt.max_drafts > 1 && (
+                                    <span className="ml-2 text-xs text-muted">max {opt.max_drafts}</span>
+                                  )}
+                                  {opt.odds_source === 'auto' && (
+                                    <span className="ml-2 text-xs text-clash">auto</span>
+                                  )}
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={() => setEditingOptionId(opt.id)}>Edit</Button>
+                                <Button variant="danger" size="sm"
+                                  loading={deletingId === opt.id}
+                                  onClick={() => handleDeleteOption(opt.id)}>Delete</Button>
+                              </div>
                             )}
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => setEditingOptionId(opt.id)}>Edit</Button>
-                          <Button variant="danger" size="sm"
-                            loading={deletingId === opt.id}
-                            onClick={() => handleDeleteOption(opt.id)}>Delete</Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        ))}
 
-                  {addingOptionFor === event.id ? (
-                    <BetOptionForm eventId={event.id} onDone={() => { setAddingOptionFor(null); reload() }} />
-                  ) : (
-                    <Button variant="secondary" size="sm" onClick={() => setAddingOptionFor(event.id)}>
-                      + Add Option
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                        {addingOptionFor === event.id ? (
+                          <BetOptionForm eventId={event.id} onDone={() => { setAddingOptionFor(null); reload() }} />
+                        ) : (
+                          <Button variant="secondary" size="sm" onClick={() => setAddingOptionFor(event.id)}>
+                            + Add Option
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          })}
 
           {addingEvent ? (
             <EventForm bzId={betstravaganzaId} onDone={() => { setAddingEvent(false); reload() }} />
@@ -557,7 +635,6 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
               + Add Event
             </Button>
           )}
-        </div>
         </div>
       )}
 
