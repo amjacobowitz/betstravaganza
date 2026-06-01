@@ -1,3 +1,4 @@
+import { requireRevealed } from '@/lib/auth/requireRevealed'
 import { getActive } from '@/lib/db/betstravaganza'
 import { getEventsWithOptions } from '@/lib/db/events'
 import { createClient } from '@/lib/supabase/server'
@@ -28,6 +29,7 @@ const SECTION_CONFIG: Record<ScheduleBucket, { label: string; color: string; dot
 }
 
 export default async function SchedulePage() {
+  await requireRevealed()
   const bz = await getActive()
   if (!bz) return <p className="text-muted text-center py-16">No active Betstravaganza.</p>
 

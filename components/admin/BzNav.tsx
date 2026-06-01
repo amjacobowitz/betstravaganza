@@ -21,10 +21,11 @@ const tabs = [
   { segment: 'print',   label: 'Print'    },
 ]
 
-export function BzNav({ bzId, bzName, bzStatus }: {
+export function BzNav({ bzId, bzName, bzStatus, bzRevealed }: {
   bzId: string
   bzName: string
   bzStatus: string
+  bzRevealed?: boolean
 }) {
   const path = usePathname()
 
@@ -46,6 +47,7 @@ export function BzNav({ bzId, bzName, bzStatus }: {
         </Link>
         <span className="text-white font-semibold">{bzName}</span>
         <Badge variant={statusVariant[bzStatus] as any}>{bzStatus.toUpperCase()}</Badge>
+        <Badge variant={bzRevealed ? 'win' : 'default'}>{bzRevealed ? '👁 Revealed' : '🔒 Hidden'}</Badge>
       </div>
       <nav className="flex gap-0.5 overflow-x-auto">
         {tabs.map(tab => (

@@ -1,12 +1,17 @@
 import Link from 'next/link'
+import { requireRevealed } from '@/lib/auth/requireRevealed'
 import { getActive } from '@/lib/db/betstravaganza'
 import { getLeaderboard } from '@/lib/db/leaderboard'
+import { getMarketHistory } from '@/lib/db/market'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BirdAvatar } from '@/components/ui/BirdAvatar'
+import { AutoRefresh } from '@/components/ui/AutoRefresh'
+import { MarketChart } from '@/components/MarketChart'
 
 
 export default async function LeaderboardPage() {
+  await requireRevealed()
   const bz = await getActive()
   if (!bz) {
     return (
@@ -18,10 +23,14 @@ export default async function LeaderboardPage() {
     )
   }
 
-  const entries = await getLeaderboard(bz.id)
+  const [entries, marketHistory] = await Promise.all([
+    getLeaderboard(bz.id),
+    getMarketHistory(bz.id),
+  ])
 
   return (
     <div className="space-y-4">
+      <AutoRefresh intervalMs={30_000} />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">{bz.name}</h1>
         <Badge variant={bz.status === 'active' ? 'win' : 'default'}>
@@ -81,8 +90,9 @@ export default async function LeaderboardPage() {
                       <span className="text-push">{e.pushes}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <span className="font-mono text-sm text-white">${e.bankroll.toFixed(0)}</span>
                       {e.pendingPicks > 0 && (
-                        <span className="text-xs text-muted">{e.pendingPicks} pending</span>
+                        <div className="text-xs text-muted">{e.pendingPicks} pending</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-xs text-accent-2">
@@ -114,6 +124,13 @@ export default async function LeaderboardPage() {
       <p className="text-center text-xs text-muted">
         Starting bankroll: ${Number(bz.starting_bankroll).toLocaleString()} · ${Number(bz.stake_amount)} per pick
       </p>
+
+      {marketHistory.steps.length >= 2 && (
+        <Card className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">Bankroll Chart</h2>
+          <MarketChart {...marketHistory} hideTeamFilter />
+        </Card>
+      )}
     </div>
   )
 }

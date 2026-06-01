@@ -502,6 +502,11 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
                   {c.charAt(0).toUpperCase() + c.slice(1)}
                 </button>
               ))}
+              <button
+                onClick={() => setActiveCategories(activeCategories.size === allCategories.length ? new Set() : new Set(allCategories))}
+                className="ml-1 text-xs text-muted hover:text-white transition-colors">
+                {activeCategories.size === allCategories.length ? 'Deselect all' : 'Select all'}
+              </button>
             </div>
             {/* Bet type */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -515,6 +520,11 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
                   {b.replace('_', ' ')}
                 </button>
               ))}
+              <button
+                onClick={() => setActiveBetTypes(activeBetTypes.size === allBetTypes.length ? new Set() : new Set(allBetTypes))}
+                className="ml-1 text-xs text-muted hover:text-white transition-colors">
+                {activeBetTypes.size === allBetTypes.length ? 'Deselect all' : 'Select all'}
+              </button>
             </div>
             {/* Sport */}
             {allSports.length > 1 && (
@@ -529,6 +539,11 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
                     {sportEmoji(s)} {s}
                   </button>
                 ))}
+                <button
+                  onClick={() => setActiveSports(activeSports.size === allSports.length ? new Set() : new Set(allSports))}
+                  className="ml-1 text-xs text-muted hover:text-white transition-colors">
+                  {activeSports.size === allSports.length ? 'Deselect all' : 'Select all'}
+                </button>
               </div>
             )}
           </div>

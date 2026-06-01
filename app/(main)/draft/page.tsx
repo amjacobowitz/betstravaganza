@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { requireRevealed } from '@/lib/auth/requireRevealed'
 import { getActive } from '@/lib/db/betstravaganza'
 import { getDraftState } from '@/lib/db/draft'
 import { Card } from '@/components/ui/Card'
@@ -37,6 +38,7 @@ export default async function PublicDraftPage({
 }: {
   searchParams: Promise<{ tab?: string }>
 }) {
+  await requireRevealed()
   const bz = await getActive()
   if (!bz) {
     return (
@@ -97,15 +99,6 @@ export default async function PublicDraftPage({
       pickCountByOption[opt.id].count++
     }
     const allOptCounts = Object.values(pickCountByOption)
-
-    // Most popular
-    const mostPop = allOptCounts.reduce((a, b) => b.count > a.count ? b : a, allOptCounts[0])
-    if (mostPop) recapStats.push({
-      emoji: '🔥',
-      label: 'Most Popular Pick',
-      value: mostPop.label,
-      sub: `Drafted by ${mostPop.count} player${mostPop.count !== 1 ? 's' : ''} — ${sportEmoji(mostPop.sport)} ${mostPop.eventName}`,
-    })
 
     // Biggest longshot (highest positive odds)
     const withOdds = allOptCounts.filter(o => o.odds != null)

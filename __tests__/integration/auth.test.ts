@@ -3,16 +3,31 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ─── Hoist mock functions so they're available inside vi.mock factories ───────
 const {
   redirectMock,
-  mockSignUp, mockSignIn, mockSignOut,
+  mockSignUp, mockSignIn, mockSignOut, mockGetUser,
   mockInsert, mockFrom,
 } = vi.hoisted(() => {
   const mockInsert = vi.fn()
-  const mockFrom   = vi.fn(() => ({ insert: mockInsert }))
+  // Chainable select builder: all chain methods return the same object;
+  // .maybeSingle() and .single() resolve to { data: null } by default.
+  function makeSelectChain() {
+    const c: any = {
+      neq:        vi.fn(() => c),
+      order:      vi.fn(() => c),
+      limit:      vi.fn(() => c),
+      eq:         vi.fn(() => c),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+      single:     vi.fn().mockResolvedValue({ data: null }),
+    }
+    return c
+  }
+  const mockFrom = vi.fn(() => ({ insert: mockInsert, select: vi.fn(() => makeSelectChain()) }))
+  const mockGetUser = vi.fn().mockResolvedValue({ data: { user: { id: 'user-uuid' } } })
   return {
     redirectMock: vi.fn(),
     mockSignUp:   vi.fn(),
     mockSignIn:   vi.fn(),
     mockSignOut:  vi.fn(),
+    mockGetUser,
     mockInsert,
     mockFrom,
   }
@@ -33,6 +48,7 @@ vi.mock('@/lib/supabase/server', () => ({
       signUp:               mockSignUp,
       signInWithPassword:   mockSignIn,
       signOut:              mockSignOut,
+      getUser:              mockGetUser,
     },
     from: mockFrom,
   }),

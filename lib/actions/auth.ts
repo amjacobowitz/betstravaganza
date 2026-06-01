@@ -3,6 +3,13 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { phoneToEmail } from '@/lib/utils/phone'
+import { getActive } from '@/lib/db/betstravaganza'
+
+async function postLoginRedirect(isAdmin: boolean) {
+  const bz = await getActive()
+  if (!isAdmin && bz && !(bz as any).revealed) redirect('/slate')
+  redirect('/leaderboard')
+}
 
 export async function signUp(formData: FormData) {
   const phone = (formData.get('phone') as string).trim()
@@ -41,7 +48,7 @@ export async function signUp(formData: FormData) {
     if (signInError) return { error: signInError.message }
   }
 
-  redirect('/leaderboard')
+  await postLoginRedirect(isAdmin)
 }
 
 export async function login(formData: FormData) {
@@ -56,7 +63,8 @@ export async function login(formData: FormData) {
     return { error: error.message }
   }
 
-  redirect('/leaderboard')
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', (await supabase.auth.getUser()).data.user!.id).single()
+  await postLoginRedirect(!!profile?.is_admin)
 }
 
 export async function logout() {

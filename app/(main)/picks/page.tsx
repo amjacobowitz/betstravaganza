@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { requireRevealed } from '@/lib/auth/requireRevealed'
 import { getActive } from '@/lib/db/betstravaganza'
+import { getMarketHistory } from '@/lib/db/market'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BirdAvatar } from '@/components/ui/BirdAvatar'
 import { SlatePicksForm } from '@/components/player/SlatePicksForm'
 import { TeamSelector } from '@/components/player/TeamSelector'
+import { MarketChart } from '@/components/MarketChart'
 import { sportEmoji } from '@/lib/utils/sports'
 import {
   computePlayerBankroll,
@@ -67,6 +70,7 @@ export default async function PicksPage({
 }: {
   searchParams: Promise<{ user?: string }>
 }) {
+  await requireRevealed()
   const bz = await getActive()
   if (!bz) redirect('/leaderboard')
 
@@ -77,6 +81,9 @@ export default async function PicksPage({
   const params = await searchParams
   const viewUserId = params.user ?? currentUser.id
   const isOwnPicks = viewUserId === currentUser.id
+
+  // Start market history fetch in parallel before other queries
+  const marketHistoryPromise = getMarketHistory(bz.id)
 
   // Fetch all users for the team selector
   const { data: allUsersData } = await supabase
@@ -199,6 +206,7 @@ export default async function PicksPage({
   const delta = grandTotal - Number(bz.starting_bankroll)
 
   const slateGames = slateGamesData ?? []
+  const marketHistory = await marketHistoryPromise
 
   const viewUser = allUsers.find(u => u.id === viewUserId)
 
@@ -218,13 +226,15 @@ export default async function PicksPage({
     const eventOptions = allOptions.filter(o => o.eventId === event.id)
     if (eventOptions.length !== 2) continue
     const [optA, optB] = eventOptions
-    const pickersA = allPicks
-      .filter(p => p.betOptionId === optA.id)
-      .map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
-    const pickersB = allPicks
-      .filter(p => p.betOptionId === optB.id)
-      .map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
-    if (pickersA.length === 0 || pickersB.length === 0) continue
+    const picksA = allPicks.filter(p => p.betOptionId === optA.id)
+    const picksB = allPicks.filter(p => p.betOptionId === optB.id)
+    if (picksA.length === 0 || picksB.length === 0) continue
+    // Only show clashes involving the viewed user
+    const viewerInA = picksA.some(p => p.userId === viewUserId)
+    const viewerInB = picksB.some(p => p.userId === viewUserId)
+    if (!viewerInA && !viewerInB) continue
+    const pickersA = picksA.map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
+    const pickersB = picksB.map(p => usersById[p.userId]?.team_name ?? usersById[p.userId]?.name ?? '?')
     const result = scoringResults.find(r => r.eventId === event.id)
     let outcome: ClashEntry['outcome'] = 'pending'
     if (result) {
@@ -511,6 +521,16 @@ export default async function PicksPage({
             </div>
           )}
         </>
+      )}
+
+      {/* Bankroll over time */}
+      {(isOwnPicks || viewUser) && marketHistory.steps.length >= 2 && (
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Bankroll Over Time</h2>
+          <Card>
+            <MarketChart {...marketHistory} singleUserId={viewUserId} />
+          </Card>
+        </div>
       )}
 
       {/* Clash Tracker */}

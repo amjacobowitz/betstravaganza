@@ -7,6 +7,7 @@ import { logout } from '@/lib/actions/auth'
 interface NavBarProps {
   isAdmin: boolean
   userName: string
+  revealed?: boolean
 }
 
 const mainLinks = [
@@ -17,8 +18,9 @@ const mainLinks = [
   { href: '/schedule',    label: '📅 Schedule'     },
 ]
 
-export function NavBar({ isAdmin, userName }: NavBarProps) {
+export function NavBar({ isAdmin, userName, revealed = true }: NavBarProps) {
   const path = usePathname()
+  const visibleLinks = revealed ? mainLinks : mainLinks.filter(l => l.href === '/slate')
 
   return (
     <>
@@ -31,7 +33,7 @@ export function NavBar({ isAdmin, userName }: NavBarProps) {
             </span>
           </Link>
           <nav className="flex items-center gap-1">
-            {mainLinks.map(l => (
+            {visibleLinks.map(l => (
               <Link
                 key={l.href}
                 href={l.href}
@@ -72,7 +74,7 @@ export function NavBar({ isAdmin, userName }: NavBarProps) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t border-border bg-surface sm:hidden">
-        {mainLinks.map(l => (
+        {visibleLinks.map(l => (
           <Link
             key={l.href}
             href={l.href}

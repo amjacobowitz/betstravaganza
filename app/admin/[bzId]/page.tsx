@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BzDatetimeEditor } from '@/components/admin/BzDatetimeEditor'
+import { BzNameEditor } from '@/components/admin/BzNameEditor'
+import { RevealToggle } from '@/components/admin/RevealToggle'
 import { DraftOrderManager } from '@/components/admin/DraftOrderManager'
 
 const statusVariant: Record<string, string> = {
@@ -58,6 +60,16 @@ export default async function BzOverviewPage({
           <div className="text-muted">Event End</div>
           <div className="text-white">{fmtDate((bz as any).end_datetime)}</div>
         </div>
+      </Card>
+
+      {/* Name editor */}
+      <Card title="Rename">
+        <BzNameEditor bzId={bz.id} initialName={bz.name} />
+      </Card>
+
+      {/* Phase reveal */}
+      <Card title="Player Visibility">
+        <RevealToggle bzId={bz.id} revealed={!!(bz as any).revealed} />
       </Card>
 
       {/* Dates editor */}

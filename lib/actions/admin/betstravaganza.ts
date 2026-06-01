@@ -73,6 +73,45 @@ export async function updateBetstravaganzaDates(betstravaganzaId: string, formDa
   return { ok: true }
 }
 
+export async function renameBetstravaganza(betstravaganzaId: string, name: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const trimmed = name.trim()
+  if (!trimmed) return { error: 'Name cannot be empty' }
+
+  const { error } = await supabase
+    .from('betstravaganza')
+    .update({ name: trimmed })
+    .eq('id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin', 'layout')
+  return { ok: true }
+}
+
+export async function toggleReveal(betstravaganzaId: string, revealed: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('users').select('is_admin').eq('id', user.id).single()
+  if (!profile?.is_admin) return { error: 'Not authorized' }
+
+  const { error } = await supabase
+    .from('betstravaganza')
+    .update({ revealed })
+    .eq('id', betstravaganzaId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/', 'layout')
+  return { ok: true }
+}
+
 export async function updateStatus(betstravaganzaId: string, status: 'setup' | 'draft' | 'active' | 'complete') {
   const supabase = await createClient()
   const { error } = await supabase

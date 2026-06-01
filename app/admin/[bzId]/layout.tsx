@@ -15,7 +15,7 @@ export default async function BzLayout({
 
   return (
     <div className="space-y-0">
-      <BzNav bzId={bzId} bzName={bz.name} bzStatus={bz.status} />
+      <BzNav bzId={bzId} bzName={bz.name} bzStatus={bz.status} bzRevealed={!!(bz as any).revealed} />
       <div className="pt-4">{children}</div>
     </div>
   )
