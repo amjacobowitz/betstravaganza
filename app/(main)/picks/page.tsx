@@ -95,6 +95,7 @@ export default async function PicksPage({
     { data: slateGamesData },
     { data: slatePicksData },
     { data: slateResultsData },
+    { data: bonusesData },
   ] = await Promise.all([
     supabase.from('draft_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', viewUserId).order('pick_index'),
     supabase.from('bet_options').select('*'),
@@ -103,6 +104,7 @@ export default async function PicksPage({
     supabase.from('slate_games').select('*').eq('betstravaganza_id', bz.id).order('start_time_et'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', viewUserId),
     supabase.from('slate_results').select('*'),
+    supabase.from('bonuses').select('*').eq('betstravaganza_id', bz.id).eq('user_id', viewUserId).order('created_at'),
   ])
 
   // Build scoring types
@@ -190,7 +192,9 @@ export default async function PicksPage({
   })
 
   const confidenceBonus = computeConfidenceBonus(mySlatePicks, slateResults)
-  const grandTotal = bankroll.total + confidenceBonus
+  const myBonuses = (bonusesData ?? []) as any[]
+  const bonusTotal = myBonuses.reduce((sum, b) => sum + Number(b.amount), 0)
+  const grandTotal = bankroll.total + confidenceBonus + bonusTotal
   const delta = grandTotal - Number(bz.starting_bankroll)
 
   const slateGames = slateGamesData ?? []
@@ -332,6 +336,23 @@ export default async function PicksPage({
               <div className="text-xs text-muted mt-1">Slate Bonus</div>
             </Card>
           </div>
+
+          {/* Bonuses */}
+          {myBonuses.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Bonuses</h2>
+              <Card className="overflow-hidden p-0">
+                <div className="divide-y divide-border/50">
+                  {myBonuses.map((b: any) => (
+                    <div key={b.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className="flex-1 text-sm text-white">{b.title}</div>
+                      <div className="font-bold font-mono text-win">+${Number(b.amount).toFixed(0)}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
 
           {/* Draft picks */}
           <div>

@@ -16,6 +16,7 @@ export interface LeaderboardEntry {
   teamName: string
   bankroll: number
   confidenceBonus: number
+  bonuses: number
   total: number
   pendingPicks: number
   wins: number
@@ -37,6 +38,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     { data: resultsData },
     { data: slatePicksData },
     { data: slateResultsData },
+    { data: bonusesData },
   ] = await Promise.all([
     supabase.from('betstravaganza').select('starting_bankroll, stake_amount, confidence_multiplier').eq('id', betstravaganzaId).single(),
     supabase.from('users').select('id, name, team_name'),
@@ -46,6 +48,7 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
     supabase.from('results').select('*'),
     supabase.from('slate_picks').select('*').eq('betstravaganza_id', betstravaganzaId),
     supabase.from('slate_results').select('*'),
+    supabase.from('bonuses').select('*').eq('betstravaganza_id', betstravaganzaId),
   ])
 
   if (!usersData || !bzData) return []
@@ -54,11 +57,17 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
   const stake = Number(bzData.stake_amount)
   const confidenceMultiplier = Number(bzData.confidence_multiplier)
 
-  const rawPicks   = (picksData ?? []) as any[]
-  const rawOptions = (optionsData ?? []) as any[]
-  const rawEvents  = (eventsData ?? []) as any[]
-  const rawResults = (resultsData ?? []) as any[]
+  const rawPicks    = (picksData ?? []) as any[]
+  const rawOptions  = (optionsData ?? []) as any[]
+  const rawEvents   = (eventsData ?? []) as any[]
+  const rawResults  = (resultsData ?? []) as any[]
   const rawSResults = (slateResultsData ?? []) as any[]
+  const rawBonuses  = (bonusesData ?? []) as any[]
+
+  const bonusByUser: Record<string, number> = {}
+  for (const b of rawBonuses) {
+    bonusByUser[b.user_id] = (bonusByUser[b.user_id] ?? 0) + Number(b.amount)
+  }
 
   const scoringOptions: BetOption[] = rawOptions.map((o: any) => ({
     id: o.id,
@@ -134,13 +143,15 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
       stake,
     })
     const cb = computeConfidenceBonus(userSlatePicks(user.id), sResults)
+    const bonuses = bonusByUser[user.id] ?? 0
     return {
       userId: user.id,
       name: user.name,
       teamName: user.team_name,
       bankroll: br.total,
       confidenceBonus: cb,
-      total: br.total + cb,
+      bonuses,
+      total: br.total + cb + bonuses,
       pendingPicks: br.pending,
       wins: br.picks.filter(p => p.outcome === 'win').length,
       losses: br.picks.filter(p => p.outcome === 'loss').length,
@@ -199,7 +210,8 @@ export async function getLeaderboard(betstravaganzaId: string): Promise<Leaderbo
           stake,
         })
         const cb = computeConfidenceBonus(userSlatePicks(user.id), prevSResults)
-        return { userId: user.id, total: br.total + cb }
+        const bonuses = bonusByUser[user.id] ?? 0
+        return { userId: user.id, total: br.total + cb + bonuses }
       })
       prevEntries.sort((a, b) => b.total - a.total)
       prevEntries.forEach((e, i) => { previousRankMap[e.userId] = i + 1 })

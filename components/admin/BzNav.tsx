@@ -17,6 +17,7 @@ const tabs = [
   { segment: 'draft',   label: 'Draft'    },
   { segment: 'results', label: 'Results'  },
   { segment: 'slate',   label: 'Slate'    },
+  { segment: 'bonuses', label: 'Bonuses'  },
   { segment: 'print',   label: 'Print'    },
 ]
 

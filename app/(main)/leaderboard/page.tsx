@@ -43,6 +43,7 @@ export default async function LeaderboardPage() {
                 <th className="px-4 py-3 text-right">W-L-P</th>
                 <th className="px-4 py-3 text-right">Picks</th>
                 <th className="px-4 py-3 text-right">Slate</th>
+                <th className="px-4 py-3 text-right">Bonus</th>
                 <th className="px-4 py-3 text-right font-bold text-white">Total</th>
               </tr>
             </thead>
@@ -88,6 +89,9 @@ export default async function LeaderboardPage() {
                     <td className="px-4 py-3 text-right font-mono text-xs text-accent-2">
                       {e.confidenceBonus > 0 ? `+$${e.confidenceBonus}` : '—'}
                     </td>
+                    <td className="px-4 py-3 text-right font-mono text-xs text-win">
+                      {e.bonuses > 0 ? `+$${e.bonuses}` : '—'}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-bold font-mono text-base ${delta >= 0 ? 'text-win' : 'text-loss'}`}>
                         {formatMoney(delta)}
@@ -98,7 +102,7 @@ export default async function LeaderboardPage() {
               })}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted">
                     Draft hasn't started yet.
                   </td>
                 </tr>
