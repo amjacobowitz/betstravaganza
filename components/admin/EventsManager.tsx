@@ -463,7 +463,7 @@ export function EventsManager({ betstravaganzaId, initialEvents, initialSlateGam
       <div className="flex gap-1">
         {(['events', 'slate'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${tab === t ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${tab === t ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'}`}>
             {t === 'events' ? 'Events & Bets' : 'Slate Games'}
           </button>
         ))}

@@ -48,7 +48,7 @@ function AvailDot({ draftCount, maxDrafts }: { draftCount: number; maxDrafts: nu
   const base = 'mt-1 shrink-0 h-2 w-2 rounded-full'
   if (draftCount >= maxDrafts) return <span className={`${base} bg-zinc-600`} />
   if (draftCount > 0)          return <span className={`${base} bg-amber-400`} />
-  return                              <span className={`${base} bg-emerald-500`} />
+  return                              <span className={`${base} bg-win`} />
 }
 
 // ─── Pick Pool (grouped by event) ────────────────────────────────────────────
@@ -195,7 +195,7 @@ function PickPool({
                     </span>
                   )}
                   <span className={`ml-auto text-xs font-mono tabular-nums ${
-                    eventFull ? 'text-muted' : takenSlots > 0 ? 'text-amber-400' : 'text-emerald-500'
+                    eventFull ? 'text-muted' : takenSlots > 0 ? 'text-amber-400' : 'text-win'
                   }`}>
                     {takenSlots} / {totalSlots} slots taken
                   </span>
@@ -250,7 +250,7 @@ function PickPool({
                       </div>
                       {showSlotCount && (
                         <div className={`text-xs font-mono tabular-nums ${
-                          isFull ? 'text-muted' : draftCount > 0 ? 'text-amber-400' : 'text-emerald-500'
+                          isFull ? 'text-muted' : draftCount > 0 ? 'text-amber-400' : 'text-win'
                         }`}>
                           {draftCount}/{option.maxDrafts}
                         </div>
@@ -498,7 +498,7 @@ function PlayerRoster({
       }`}>
         <div className="mt-0.5 shrink-0">
           {pick
-            ? <span className="text-emerald-500 text-xs font-bold">✓</span>
+            ? <span className="text-win text-xs font-bold">✓</span>
             : <span className="text-muted/40 text-xs font-bold">○</span>
           }
         </div>
@@ -793,7 +793,7 @@ export function DraftBoard({
                 key={key}
                 onClick={() => setTab(key)}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors
-                  ${tab === key ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}
+                  ${tab === key ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'}`}
               >
                 {label}
               </button>
@@ -833,7 +833,7 @@ export function DraftBoard({
                     onClick={() => toggleFilter(key)}
                     className={`h-7 rounded-lg px-3 text-xs font-medium transition-colors border
                       ${active
-                        ? `${color} text-black border-transparent`
+                        ? `${color} text-white border-transparent`
                         : 'bg-surface-2 text-muted border-border hover:text-white hover:border-border/80'}`}
                   >
                     {label}
@@ -850,7 +850,7 @@ export function DraftBoard({
               <button
                 onClick={() => setShowLegend(v => !v)}
                 className={`h-7 w-7 rounded-lg border text-xs font-semibold transition-colors flex items-center justify-center
-                  ${showLegend ? 'bg-accent text-black border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
+                  ${showLegend ? 'bg-accent text-white border-accent' : 'bg-surface-2 text-muted border-border hover:text-white'}`}
                 title="Toggle legend"
               >
                 ?
@@ -875,7 +875,7 @@ export function DraftBoard({
                   <div className="space-y-1.5">
                     <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Availability dot</p>
                     <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="h-2 w-2 rounded-full bg-win shrink-0" />
                       <span className="text-white">Available — no picks yet</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -924,7 +924,7 @@ export function DraftBoard({
                   <div className="space-y-1.5 sm:col-span-2">
                     <p className="text-muted/60 font-medium uppercase tracking-wider text-xs">Event header</p>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-emerald-500">0 / 4 slots taken</span>
+                      <span className="font-mono text-win">0 / 4 slots taken</span>
                       <span className="text-white">Total picks made across all options in this event</span>
                     </div>
                     <div className="flex items-center gap-2">

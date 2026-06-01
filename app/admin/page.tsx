@@ -24,7 +24,7 @@ export default async function AdminIndexPage() {
         <h1 className="text-2xl font-bold text-white">Betstravaganzas</h1>
         <Link
           href="/admin/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
         >
           + New
         </Link>
@@ -36,7 +36,7 @@ export default async function AdminIndexPage() {
             <p className="text-muted text-sm">No betstravaganzas yet.</p>
             <Link
               href="/admin/new"
-              className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-400 transition-colors"
+              className="inline-block rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 transition-colors"
             >
               Create your first one
             </Link>

@@ -195,7 +195,7 @@ export default async function PublicDraftPage({
               href={`/draft?tab=${tab}`}
               className={`rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors ${
                 activeTab === tab
-                  ? 'bg-accent text-black'
+                  ? 'bg-accent text-white'
                   : 'bg-surface-2 text-muted hover:text-white'
               }`}
             >

@@ -486,7 +486,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
       <div className="flex gap-1">
         {(['events', 'slate'] as const).map(t => (
           <button key={t} onClick={() => { setTypeTab(t); setStatusFilter('all') }}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${typeTab === t ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${typeTab === t ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'}`}>
             {t === 'events' ? `Events (${events.length})` : `Slate Games (${slateGames.length})`}
           </button>
         ))}
@@ -496,7 +496,7 @@ export function ResultsForm({ events, slateGames, bzId }: {
       <div className="flex flex-wrap gap-1">
         {(['all', 'not_started', 'in_progress', 'complete'] as StatusFilter[]).map(s => (
           <button key={s} onClick={() => setStatusFilter(s)}
-            className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'}`}>
+            className={`rounded-lg px-3 py-1 text-xs font-medium transition-colors ${statusFilter === s ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'}`}>
             {s === 'all' ? `All (${statusCounts.all})` : `${statusLabel[s]} (${statusCounts[s]})`}
           </button>
         ))}

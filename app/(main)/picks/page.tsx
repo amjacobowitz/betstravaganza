@@ -249,13 +249,13 @@ export default async function PicksPage({
         <Link
           href="/picks"
           className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-            isOwnPicks ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'
+            isOwnPicks ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'
           }`}
         >
           Mine
         </Link>
         <div className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-          !isOwnPicks ? 'bg-accent text-black' : 'bg-surface-2 text-muted hover:text-white'
+          !isOwnPicks ? 'bg-accent text-white' : 'bg-surface-2 text-muted hover:text-white'
         }`}>
           Others
         </div>
