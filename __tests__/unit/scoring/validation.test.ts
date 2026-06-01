@@ -210,6 +210,59 @@ describe('validateDraftTurn', () => {
     })
   })
 
+  describe('one pick per event enforcement', () => {
+    it('blocks a player from picking a second option from the same required event', () => {
+      const events = [...makeRequiredEvents(), ...makeOptionalEvents()]
+      const options = events.flatMap(e => makeOptions(e.id))
+
+      // Player already has req-1-opt-0; now tries to pick req-1-opt-1
+      const playerPicks: DraftPick[] = [
+        makePick('user-1', 'req-1', 'req-1-opt-0', 1, t(0)),
+      ]
+
+      const result = validateDraftTurn({
+        userId: 'user-1',
+        proposedBetOptionId: 'req-1-opt-1',
+        playerPicks,
+        allPicks: playerPicks,
+        betOptions: options,
+        events,
+        requiredEventIds: REQUIRED_EVENT_IDS,
+        totalRounds: TOTAL_ROUNDS,
+      })
+
+      expect(result.valid).toBe(false)
+      expect(result.reason).toMatch(/already has a pick from this event/i)
+    })
+
+    it('blocks a player from picking a second option from the same optional event', () => {
+      const events = [...makeRequiredEvents(), ...makeOptionalEvents(3)]
+      const options = events.flatMap(e => makeOptions(e.id))
+
+      // All required done; player tries to pick second option from same optional event
+      const playerPicks: DraftPick[] = [
+        ...REQUIRED_EVENT_IDS.map((id, i) =>
+          makePick('user-1', id, `${id}-opt-0`, i + 1, t(i * 100))
+        ),
+        makePick('user-1', 'opt-event-0', 'opt-event-0-opt-0', 7, t(700)),
+      ]
+
+      const result = validateDraftTurn({
+        userId: 'user-1',
+        proposedBetOptionId: 'opt-event-0-opt-1',
+        playerPicks,
+        allPicks: playerPicks,
+        betOptions: options,
+        events,
+        requiredEventIds: REQUIRED_EVENT_IDS,
+        totalRounds: TOTAL_ROUNDS,
+      })
+
+      expect(result.valid).toBe(false)
+      expect(result.reason).toMatch(/already has a pick from this event/i)
+    })
+  })
+
   describe('clash pick tracking', () => {
     it('reports clash picks needed', () => {
       const events = [...makeRequiredEvents(), ...makeOptionalEvents(5)]

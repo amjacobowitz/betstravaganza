@@ -185,7 +185,7 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
   const html = `<!DOCTYPE html>
 <html>
 <head>
-<title>My Picks — ${bzName}</title>
+<title>${bzName} — Roster Sheet</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: Arial, sans-serif; font-size: 11px; margin: 16px 20px; color: #000; }
@@ -220,8 +220,8 @@ function printMyPicksRoster(bzName: string, events: Event[]) {
 </style>
 </head>
 <body>
-<h1>My Picks — ${bzName}</h1>
-<div class="sub">Fill in your picks as the draft progresses. Check off winners during the weekend.</div>
+<h1>${bzName}</h1>
+<div class="sub">Roster Sheet — Fill in your picks as the draft progresses. Check off winners during the weekend.</div>
 
 <div class="identity">
   <div class="field"><label>Team Name</label><div class="line"></div></div>
@@ -237,7 +237,7 @@ ${required.map(e => `
 <thead><tr>
   <th class="center">✓</th><th>Pick</th><th>Odds</th><th>Notes</th>
 </tr></thead>
-<tbody>${blankRows(e.bet_options.length, false)}</tbody>
+<tbody>${blankRows(1, false)}</tbody>
 </table>`).join('')}
 </div>
 
@@ -259,7 +259,7 @@ ${optional.map(e => `
 <thead><tr>
   <th class="center">✓</th><th>Pick</th><th>Odds</th><th class="center">⚔️</th><th>Notes</th>
 </tr></thead>
-<tbody>${blankRows(e.bet_options.length, true)}</tbody>
+<tbody>${blankRows(1, true)}</tbody>
 </table>`).join('')}
 </div>
 </body></html>`

@@ -36,6 +36,19 @@ export function validateDraftTurn({
 
   const who = teamName ?? 'This player'
 
+  // Prevent picking a second option from an event the player already has a pick for
+  if (proposedOption) {
+    const alreadyPickedFromEvent = playerPicks.some(p => p.eventId === proposedOption.eventId)
+    if (alreadyPickedFromEvent) {
+      return {
+        valid: false,
+        reason: `${who} already has a pick from this event.`,
+        requiredRemaining,
+        clashPicksNeeded,
+      }
+    }
+  }
+
   // No rounds remaining
   if (roundsRemaining <= 0) {
     return {
