@@ -28,7 +28,7 @@ export function RevealToggle({ bzId, revealed }: { bzId: string; revealed: boole
         onClick={handleToggle}
         loading={loading}
         size="sm"
-        variant={revealed ? 'danger' : 'default'}
+        variant={revealed ? 'danger' : 'secondary'}
       >
         {revealed ? '🔒 Hide from Players' : '👁 Reveal to Players'}
       </Button>
