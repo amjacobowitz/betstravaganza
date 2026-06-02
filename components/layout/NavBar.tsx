@@ -16,6 +16,7 @@ const mainLinks = [
   { href: '/draft',       label: '📋 Draft'        },
   { href: '/slate',       label: '🏟 Slate'         },
   { href: '/schedule',    label: '📅 Schedule'     },
+  { href: '/help',        label: '❓ Help'          },
 ]
 
 export function NavBar({ isAdmin, userName, revealed = true }: NavBarProps) {

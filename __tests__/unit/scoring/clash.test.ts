@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isClashPick } from '@/lib/scoring/clash'
+import { isClashPick, wouldCreateClash, countAvailableClashOpportunities } from '@/lib/scoring/clash'
 import type { DraftPick, BetOption, ScoringEvent } from '@/lib/scoring/types'
 
 const t = (offsetMs: number) => new Date(1000000 + offsetMs)
@@ -101,5 +101,96 @@ describe('isClashPick', () => {
     const allPicks = [p1, p2]
     expect(isClashPick(p1, allPicks, options, events)).toBe(false) // p1 was first
     expect(isClashPick(p2, allPicks, options, events)).toBe(true)  // p2 clashes p1
+  })
+})
+
+describe('wouldCreateClash', () => {
+  it('returns true when opposing side already has a pick from a different user', () => {
+    const events = [makeEvent()]
+    const options = makeTwoSidedOptions()
+    const opposingPick = makePick({ id: 'pick-0', userId: 'user-2', betOptionId: 'opt-home', createdAt: t(0) })
+
+    expect(wouldCreateClash('user-1', 'opt-away', [opposingPick], options, events)).toBe(true)
+  })
+
+  it('returns false when no opposing pick exists yet', () => {
+    const events = [makeEvent()]
+    const options = makeTwoSidedOptions()
+
+    expect(wouldCreateClash('user-1', 'opt-away', [], options, events)).toBe(false)
+  })
+
+  it('returns false for a required event', () => {
+    const events = [makeEvent({ category: 'required' })]
+    const options = makeTwoSidedOptions()
+    const opposingPick = makePick({ id: 'pick-0', userId: 'user-2', betOptionId: 'opt-home', createdAt: t(0) })
+
+    expect(wouldCreateClash('user-1', 'opt-away', [opposingPick], options, events)).toBe(false)
+  })
+
+  it('returns false when opposing pick belongs to the same user', () => {
+    const events = [makeEvent()]
+    const options = makeTwoSidedOptions()
+    const ownPick = makePick({ id: 'pick-0', userId: 'user-1', betOptionId: 'opt-home', createdAt: t(0) })
+
+    expect(wouldCreateClash('user-1', 'opt-away', [ownPick], options, events)).toBe(false)
+  })
+
+  it('returns false for a multi-option (non-binary) event', () => {
+    const events = [makeEvent()]
+    const multiOptions: BetOption[] = [
+      { id: 'o1', eventId: 'event-1', label: 'A', odds: 300, maxDrafts: 1, draftCount: 1 },
+      { id: 'o2', eventId: 'event-1', label: 'B', odds: 200, maxDrafts: 1, draftCount: 1 },
+      { id: 'o3', eventId: 'event-1', label: 'C', odds: 100, maxDrafts: 1, draftCount: 1 },
+    ]
+    const otherPick = makePick({ id: 'pick-0', userId: 'user-2', betOptionId: 'o1', createdAt: t(0) })
+
+    expect(wouldCreateClash('user-1', 'o2', [otherPick], multiOptions, events)).toBe(false)
+  })
+})
+
+describe('countAvailableClashOpportunities', () => {
+  const makeOptional = (id: string): ScoringEvent => ({
+    id, name: `Opt ${id}`, category: 'optional', betType: 'spread',
+  })
+  const makeOpts = (eventId: string): BetOption[] => [
+    { id: `${eventId}-a`, eventId, label: 'A', odds: -110, maxDrafts: 1, draftCount: 0 },
+    { id: `${eventId}-b`, eventId, label: 'B', odds: -110, maxDrafts: 1, draftCount: 0 },
+  ]
+
+  it('returns 0 when no other users have picks', () => {
+    const events = [makeOptional('e1'), makeOptional('e2')]
+    const options = [...makeOpts('e1'), ...makeOpts('e2')]
+    expect(countAvailableClashOpportunities('u1', [], [], options, events)).toBe(0)
+  })
+
+  it('counts events where an opposing pick creates a clash opportunity', () => {
+    const events = [makeOptional('e1'), makeOptional('e2')]
+    const options = [...makeOpts('e1'), ...makeOpts('e2')]
+    const otherPick: DraftPick = { id: 'p1', userId: 'u2', betOptionId: 'e1-a', eventId: 'e1', roundNumber: 1, createdAt: new Date() }
+
+    // e1 has an opposing pick from u2 → 1 clash opportunity
+    expect(countAvailableClashOpportunities('u1', [], [otherPick], options, events)).toBe(1)
+  })
+
+  it('does not count events the player already picked from', () => {
+    const events = [makeOptional('e1'), makeOptional('e2')]
+    const options = [...makeOpts('e1'), ...makeOpts('e2')]
+    const otherPick: DraftPick = { id: 'p1', userId: 'u2', betOptionId: 'e1-a', eventId: 'e1', roundNumber: 1, createdAt: new Date() }
+    const myPick: DraftPick = { id: 'p2', userId: 'u1', betOptionId: 'e1-b', eventId: 'e1', roundNumber: 2, createdAt: new Date() }
+
+    // Player already picked e1, so no opportunity there
+    expect(countAvailableClashOpportunities('u1', [myPick], [otherPick, myPick], options, events)).toBe(0)
+  })
+
+  it('counts multiple events with opposing picks', () => {
+    const events = [makeOptional('e1'), makeOptional('e2'), makeOptional('e3')]
+    const options = [...makeOpts('e1'), ...makeOpts('e2'), ...makeOpts('e3')]
+    const picks: DraftPick[] = [
+      { id: 'p1', userId: 'u2', betOptionId: 'e1-a', eventId: 'e1', roundNumber: 1, createdAt: new Date() },
+      { id: 'p2', userId: 'u2', betOptionId: 'e2-b', eventId: 'e2', roundNumber: 2, createdAt: new Date() },
+    ]
+
+    expect(countAvailableClashOpportunities('u1', [], picks, options, events)).toBe(2)
   })
 })

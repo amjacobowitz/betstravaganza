@@ -1,4 +1,4 @@
-import { isClashPick } from './clash'
+import { isClashPick, wouldCreateClash, countAvailableClashOpportunities } from './clash'
 import type { ValidateDraftTurnInput, ValidationResult } from './types'
 
 export function validateDraftTurn({
@@ -59,18 +59,33 @@ export function validateDraftTurn({
     }
   }
 
-  // Check if proposed pick is optional when we must take required
+  // Combined mandatory check: required + achievable clash picks must all fit in remaining rounds.
+  // If a pick satisfies neither requirement, block it.
   const proposedEvent = proposedOption ? events.find(e => e.id === proposedOption.eventId) : null
-  const isProposingOptional = proposedEvent?.category === 'optional'
 
-  if (isProposingOptional && requiredRemaining.length >= roundsRemaining) {
-    const n = requiredRemaining.length
-    const r = roundsRemaining
-    return {
-      valid: false,
-      reason: `${who} still needs ${n} required pick${n !== 1 ? 's' : ''} and only has ${r} round${r !== 1 ? 's' : ''} left. Must draft a required event.`,
-      requiredRemaining,
-      clashPicksNeeded,
+  if (proposedOption && roundsRemaining > 0) {
+    const availableClashOps = countAvailableClashOpportunities(userId, playerPicks, allPicks, betOptions, events)
+    const effectiveClashNeeded = Math.min(clashPicksNeeded, availableClashOps)
+    const mandatoryNeeded = requiredRemaining.length + effectiveClashNeeded
+
+    if (mandatoryNeeded >= roundsRemaining) {
+      const isRequiredPick = proposedEvent?.category === 'required'
+      const isClashCreating = wouldCreateClash(userId, proposedBetOptionId, allPicks, betOptions, events)
+
+      if (!isRequiredPick && !isClashCreating) {
+        const parts: string[] = []
+        if (requiredRemaining.length > 0)
+          parts.push(`${requiredRemaining.length} required pick${requiredRemaining.length !== 1 ? 's' : ''}`)
+        if (effectiveClashNeeded > 0)
+          parts.push(`${effectiveClashNeeded} clash pick${effectiveClashNeeded !== 1 ? 's' : ''}`)
+        const r = roundsRemaining
+        return {
+          valid: false,
+          reason: `${who} must use remaining ${r} round${r !== 1 ? 's' : ''} for ${parts.join(' and ')}.`,
+          requiredRemaining,
+          clashPicksNeeded,
+        }
+      }
     }
   }
 

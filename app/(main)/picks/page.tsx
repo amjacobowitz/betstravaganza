@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { BirdAvatar } from '@/components/ui/BirdAvatar'
 import { TeamSelector } from '@/components/player/TeamSelector'
+import { VsSelector } from '@/components/player/VsSelector'
 import { MarketChart } from '@/components/MarketChart'
 import { sportEmoji } from '@/lib/utils/sports'
 import {
@@ -67,7 +68,7 @@ const outcomeBadge: Record<string, string> = {
 export default async function PicksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string; tab?: string }>
+  searchParams: Promise<{ user?: string; tab?: string; vs?: string }>
 }) {
   await requireRevealed()
   const bz = await getActive()
@@ -209,6 +210,34 @@ export default async function PicksPage({
 
   const viewUser = allUsers.find(u => u.id === viewUserId)
 
+  // H2H: fetch vs-user picks if ?vs=<id> present
+  const vsUserId = params.vs ?? null
+  const vsUser = vsUserId ? allUsers.find(u => u.id === vsUserId) : null
+  let vsPicks: DraftPick[] = []
+  let vsSlatePicks: SlatePick[] = []
+  if (vsUserId) {
+    const [{ data: vsPicksData }, { data: vsSlatePicksData }] = await Promise.all([
+      supabase.from('draft_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', vsUserId).order('pick_index'),
+      supabase.from('slate_picks').select('*').eq('betstravaganza_id', bz.id).eq('user_id', vsUserId),
+    ])
+    vsPicks = (vsPicksData ?? []).map((p: any) => ({
+      id: p.id,
+      userId: p.user_id,
+      betOptionId: p.bet_option_id,
+      eventId: allOptions.find(o => o.id === p.bet_option_id)?.eventId ?? '',
+      roundNumber: p.round_number,
+      createdAt: new Date(p.created_at),
+    }))
+    vsSlatePicks = (vsSlatePicksData ?? []).map((p: any) => ({
+      id: p.id,
+      userId: p.user_id,
+      slateGameId: p.slate_game_id,
+      teamPicked: p.team_picked,
+      confidenceRank: p.confidence_rank,
+      submittedAt: new Date(p.submitted_at),
+    }))
+  }
+
   // Build clash tracker: optional events with 2 options where both sides have picks
   interface ClashEntry {
     eventId: string
@@ -288,6 +317,14 @@ export default async function PicksPage({
             users={allUsers}
             currentUserId={currentUser.id}
             selectedUserId={null}
+          />
+        )}
+        {(isOwnPicks || viewUser) && allUsers.length > 2 && (
+          <VsSelector
+            users={allUsers}
+            currentUserId={currentUser.id}
+            viewUserId={viewUserId}
+            vsUserId={vsUserId}
           />
         )}
       </div>
@@ -627,6 +664,142 @@ export default async function PicksPage({
           </div>
         </div>
       )}
+
+      {/* Head-to-Head comparison */}
+      {vsUser && (isOwnPicks || viewUser) && (() => {
+        const myName = isOwnPicks
+          ? (allUsers.find(u => u.id === currentUser.id)?.team_name ?? 'You')
+          : (viewUser?.team_name ?? viewUser?.name ?? 'Them')
+        const vsName = vsUser.team_name ?? vsUser.name
+
+        // Build event-level comparison map
+        const myPickByEventId = Object.fromEntries(myPicks.map(p => [p.eventId, p]))
+        const vsPickByEventId = Object.fromEntries(vsPicks.map(p => [p.eventId, p]))
+        const allEventIds = new Set([...Object.keys(myPickByEventId), ...Object.keys(vsPickByEventId)])
+
+        // Build slate pick comparison by game
+        const mySlateByGameId = Object.fromEntries(mySlatePicks.map(p => [p.slateGameId, p]))
+        const vsSlateByGameId = Object.fromEntries(vsSlatePicks.map(p => [p.slateGameId, p]))
+        const allSlateGameIds = new Set([...Object.keys(mySlateByGameId), ...Object.keys(vsSlateByGameId)])
+
+        return (
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Head to Head</h2>
+              <span className="text-xs text-muted">{myName} vs {vsName}</span>
+            </div>
+
+            {/* Draft picks H2H */}
+            {allEventIds.size > 0 && (
+              <Card className="overflow-hidden p-0 mb-3">
+                <div className="grid grid-cols-3 gap-0 text-xs font-semibold text-muted uppercase tracking-wider border-b border-border/50 px-3 py-2 bg-surface-2/50">
+                  <span>{myName}</span>
+                  <span className="text-center">Event</span>
+                  <span className="text-right">{vsName}</span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {Array.from(allEventIds).map(eventId => {
+                    const event = allEvents.find(e => e.id === eventId)
+                    if (!event) return null
+                    const myPick = myPickByEventId[eventId]
+                    const vsPick = vsPickByEventId[eventId]
+                    const myOption = myPick ? allOptions.find(o => o.id === myPick.betOptionId) : null
+                    const vsOption = vsPick ? allOptions.find(o => o.id === vsPick.betOptionId) : null
+                    const myDetail = myPick ? bankroll.picks.find(p => p.pickId === myPick.id) : null
+                    const vsResult = scoringResults.find(r => r.eventId === eventId)
+                    const vsOutcome = (vsOption && vsResult)
+                      ? (vsResult.winnerBetOptionId === vsPick?.betOptionId || (vsResult.winnerBetOptionIds ?? []).includes(vsPick?.betOptionId ?? ''))
+                        ? 'win' : 'loss'
+                      : 'pending'
+                    const isSame = myPick && vsPick && myPick.betOptionId === vsPick.betOptionId
+                    const isClash = myPick && vsPick && myPick.betOptionId !== vsPick.betOptionId &&
+                      event.category === 'optional' &&
+                      allOptions.filter(o => o.eventId === eventId).length === 2
+
+                    return (
+                      <div key={eventId} className="grid grid-cols-3 gap-2 px-3 py-2 items-center">
+                        <div>
+                          {myOption ? (
+                            <span className={`text-xs font-medium ${
+                              myDetail?.outcome === 'win' ? 'text-win' :
+                              myDetail?.outcome === 'loss' ? 'text-loss' : 'text-white'
+                            }`}>{myOption.label}</span>
+                          ) : <span className="text-xs text-muted/40 italic">—</span>}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-muted truncate">{event.name}</div>
+                          {isClash && <span className="text-xs text-clash">⚔️ clash</span>}
+                          {isSame && <span className="text-xs text-muted/50">same</span>}
+                        </div>
+                        <div className="text-right">
+                          {vsOption ? (
+                            <span className={`text-xs font-medium ${
+                              vsOutcome === 'win' ? 'text-win' :
+                              vsOutcome === 'loss' ? 'text-loss' : 'text-white'
+                            }`}>{vsOption.label}</span>
+                          ) : <span className="text-xs text-muted/40 italic">—</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            )}
+
+            {/* Slate picks H2H */}
+            {allSlateGameIds.size > 0 && (
+              <Card className="overflow-hidden p-0">
+                <div className="px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider border-b border-border/50 bg-surface-2/50">
+                  Slate Confidence Picks
+                </div>
+                <div className="grid grid-cols-3 gap-0 text-xs text-muted px-3 py-1.5 border-b border-border/30">
+                  <span>{myName}</span>
+                  <span className="text-center">Game</span>
+                  <span className="text-right">{vsName}</span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {Array.from(allSlateGameIds).map(gameId => {
+                    const game = slateGames.find((g: any) => g.id === gameId) as any
+                    if (!game) return null
+                    const mySP = mySlateByGameId[gameId]
+                    const vsSP = vsSlateByGameId[gameId]
+                    const myTeam = mySP ? (mySP.teamPicked === 'home' ? game.home_team : game.away_team) : null
+                    const vsTeam = vsSP ? (vsSP.teamPicked === 'home' ? game.home_team : game.away_team) : null
+                    const isSameSide = mySP && vsSP && mySP.teamPicked === vsSP.teamPicked
+                    const isOppSide = mySP && vsSP && mySP.teamPicked !== vsSP.teamPicked
+
+                    return (
+                      <div key={gameId} className="grid grid-cols-3 gap-2 px-3 py-2 items-center">
+                        <div>
+                          {myTeam ? (
+                            <div>
+                              <span className="text-xs font-medium text-white">{myTeam}</span>
+                              <span className="ml-1 text-xs text-accent-2 font-mono">#{mySP!.confidenceRank}</span>
+                            </div>
+                          ) : <span className="text-xs text-muted/40 italic">—</span>}
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-muted">{game.away_team} @ {game.home_team}</div>
+                          {isOppSide && <span className="text-xs text-clash">⚔️</span>}
+                          {isSameSide && <span className="text-xs text-muted/40">same</span>}
+                        </div>
+                        <div className="text-right">
+                          {vsTeam ? (
+                            <div>
+                              <span className="text-xs font-mono text-accent-2">#{vsSP!.confidenceRank}</span>
+                              <span className="ml-1 text-xs font-medium text-white">{vsTeam}</span>
+                            </div>
+                          ) : <span className="text-xs text-muted/40 italic">—</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </Card>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }

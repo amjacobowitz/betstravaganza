@@ -1,5 +1,5 @@
 export { computePayout } from './payout'
-export { isClashPick } from './clash'
+export { isClashPick, wouldCreateClash, countAvailableClashOpportunities } from './clash'
 export { validateDraftTurn } from './validation'
 export { computeOutcome, computePlayerBankroll } from './bankroll'
 export { computeConfidenceBonus } from './confidence'
