@@ -3,11 +3,20 @@
 import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { phoneToEmail } from '@/lib/utils/phone'
-import { getActive } from '@/lib/db/betstravaganza'
 
 async function postLoginRedirect(isAdmin: boolean) {
-  const bz = await getActive()
-  if (!isAdmin && bz && !(bz as any).revealed) redirect('/slate')
+  // Use admin client so RLS doesn't block the read — auth session cookies
+  // set by signInWithPassword aren't visible to new createClient() calls
+  // within the same server action.
+  const adminSupabase = await createAdminClient()
+  const { data: bz } = await adminSupabase
+    .from('betstravaganza')
+    .select('revealed')
+    .neq('status', 'complete')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!isAdmin && bz && !bz.revealed) redirect('/slate')
   redirect('/leaderboard')
 }
 
