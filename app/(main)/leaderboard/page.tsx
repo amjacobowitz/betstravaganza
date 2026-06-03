@@ -100,11 +100,11 @@ export default async function LeaderboardPage() {
                           {e.confidenceBonus > 0 ? `+$${e.confidenceBonus}` : '—'}
                         </span>
                       </span>
-                      {e.bonuses > 0 && (
-                        <span className="text-muted">
-                          Bonus: <span className="font-mono text-win">+${e.bonuses}</span>
+                      <span className="text-muted">
+                        Bonus: <span className={`font-mono ${e.bonuses > 0 ? 'text-win' : 'text-muted'}`}>
+                          {e.bonuses > 0 ? `+$${e.bonuses}` : '—'}
                         </span>
-                      )}
+                      </span>
                     </div>
                   </div>
 
