@@ -281,8 +281,8 @@ export default async function SlatePage({
         </div>
       )}
 
-      {/* Game cards: shown before lock, or on All Slates tab after lock */}
-      {(!isLocked || activeTab === 'all') && (
+      {/* Game cards: only on All Slates tab after lock */}
+      {isLocked && activeTab === 'all' && (
         <div className="space-y-4">
           {slateGames.map((game: any) => {
             const gamePicks = slatePicks.filter((p: any) => p.slate_game_id === game.id)
@@ -361,8 +361,8 @@ export default async function SlatePage({
         </div>
       )}
 
-      {/* Bonus totals: before lock always visible, after lock on All Slates tab only */}
-      {(!isLocked || activeTab === 'all') && revealed && users.length > 0 && slateGames.length > 0 && (
+      {/* Bonus totals: only on All Slates tab after lock */}
+      {isLocked && activeTab === 'all' && revealed && users.length > 0 && slateGames.length > 0 && (
         <Card>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Slate Bonus Totals</h2>
           <div className="divide-y divide-border/30">
