@@ -1024,6 +1024,334 @@ async function run() {
     }
   }
 
+  // WNBA: Washington Mystics @ Atlanta Dream
+  {
+    const wnbaTime3 = new Date(`${DATE_ET}T22:00:00Z`) // 6pm ET
+    const evWNBA3 = await insert<any>('event: Washington Mystics @ Atlanta Dream',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'Washington Mystics @ Atlanta Dream',
+        sport:             'Basketball',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     wnbaTime3.toISOString(),
+        streaming_info:    'Amazon Prime Video — State Farm Arena, Atlanta',
+      }).select().single()
+    )
+    const wnba3Game = wnbaGames.find(g =>
+      g.home_team.includes('Dream') || g.home_team.includes('Atlanta')
+    )
+    if (wnba3Game) {
+      const market = bestMarket(wnba3Game, 'h2h')
+      if (market) {
+        for (const o of market.outcomes) {
+          await insert<any>(`  WNBA: ${o.name}`,
+            admin.from('bet_options').insert({
+              event_id: evWNBA3.id, label: `${o.name} Win`, odds: o.price,
+              max_drafts: 1, odds_source: 'api',
+            }).select().single()
+          )
+        }
+      }
+    } else {
+      for (const o of [{ label: 'Atlanta Dream Win', odds: -130 }, { label: 'Washington Mystics Win', odds: 110 }]) {
+        await insert<any>(`  WNBA: ${o.label}`,
+          admin.from('bet_options').insert({
+            event_id: evWNBA3.id, label: o.label, odds: o.odds,
+            max_drafts: 1, odds_source: 'manual',
+          }).select().single()
+        )
+      }
+      warn('Washington @ Atlanta not found in WNBA API — using manual odds.')
+    }
+  }
+
+  // Soccer: USA Women's National Team vs Brazil
+  {
+    const uswntTime = new Date(`${DATE_ET}T21:30:00Z`) // 5:30pm ET
+    const evUSWNT = await insert<any>('event: USA Women vs Brazil',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'USA Women vs Brazil',
+        sport:             'Soccer',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     uswntTime.toISOString(),
+        streaming_info:    'TNT / Max — São Paulo, Brazil',
+        notes:             'International friendly. Update odds before kickoff.',
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'USA Women win', odds: -200 },
+      { label: 'Brazil win',    odds:  350 },
+      { label: 'Draw',          odds:  280 },
+    ]) {
+      await insert<any>(`  Soccer: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evUSWNT.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('USA Women vs Brazil odds are estimates — update before kickoff.')
+  }
+
+  // Golf: PGA Memorial Tournament Round 3 — Lowest Score
+  {
+    const pgaTime = new Date(`${DATE_ET}T11:30:00Z`) // ~7:30am ET tee times
+    const evPGA = await insert<any>('event: PGA Memorial Tournament Rd 3 — Lowest Score',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'PGA Memorial Tournament Rd 3 — Lowest Score',
+        sport:             'Golf',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     pgaTime.toISOString(),
+        streaming_info:    'Golf Channel / Peacock — Muirfield Village Golf Club, Dublin, OH',
+        notes:             'Pick the player who shoots the lowest Round 3 score. Update odds after Rounds 1-2.',
+      }).select().single()
+    )
+    const PGA_MEMORIAL_FIELD = [
+      'Scottie Scheffler', 'Rory McIlroy', 'Xander Schauffele', 'Collin Morikawa',
+      'Viktor Hovland', 'Jon Rahm', 'Patrick Cantlay', 'Wyndham Clark',
+      'Ludvig Åberg', 'Max Homa', 'Rickie Fowler', 'Tony Finau',
+      'Jordan Spieth', 'Jason Day', 'Will Zalatoris', 'Sam Burns',
+      'Hideki Matsuyama', 'Justin Thomas', 'Matt Fitzpatrick', 'Corey Conners',
+      'Tommy Fleetwood', 'Adam Scott', 'Tom Kim', 'Keegan Bradley',
+      'Brian Harman', 'Billy Horschel', 'Denny McCarthy', 'Sepp Straka',
+      'Dustin Johnson', 'Gary Woodland',
+    ]
+    for (const player of PGA_MEMORIAL_FIELD) {
+      await insert<any>(`  PGA: ${player}`,
+        admin.from('bet_options').insert({
+          event_id: evPGA.id, label: player, odds: null,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('PGA Memorial Rd 3 — add odds after Friday Rounds 1-2 finish.')
+  }
+
+  // Cycling: Critérium du Dauphiné Stage 1 — Winner
+  {
+    const dauphineTime = new Date(`${DATE_ET}T14:00:00Z`) // ~10am ET / ~4pm CEST
+    const evDauphiné = await insert<any>('event: Critérium du Dauphiné Stage 1 — Winner',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'Critérium du Dauphiné Stage 1 — Winner',
+        sport:             'Cycling',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     dauphineTime.toISOString(),
+        streaming_info:    'FloBikes / GCN — France (exact route TBD)',
+        notes:             'Stage 1 of the 8-day race (June 6-13, 2026). Odds are estimates.',
+      }).select().single()
+    )
+    const DAUPHINÉ_FIELD: { label: string; odds: number }[] = [
+      { label: 'Tadej Pogačar',      odds:  -125 },
+      { label: 'Jonas Vingegaard',   odds:   200 },
+      { label: 'Remco Evenepoel',    odds:   350 },
+      { label: 'Primož Roglič',      odds:   500 },
+      { label: 'Jasper Philipsen',   odds:   600 },
+      { label: 'Wout van Aert',      odds:   700 },
+      { label: 'Caleb Ewan',         odds:   800 },
+      { label: 'Dylan Groenewegen',  odds:   900 },
+      { label: 'Simon Yates',        odds:  1200 },
+      { label: 'Geraint Thomas',     odds:  1500 },
+      { label: 'Tao Geoghegan Hart', odds:  2000 },
+      { label: 'Felix Gall',         odds:  2500 },
+      { label: 'Field / Other',      odds:  4000 },
+    ]
+    for (const rider of DAUPHINÉ_FIELD) {
+      await insert<any>(`  Cycling: ${rider.label}`,
+        admin.from('bet_options').insert({
+          event_id: evDauphiné.id, label: rider.label, odds: rider.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('Critérium du Dauphiné Stage 1 odds are estimates — update before stage start.')
+  }
+
+  // Horse Racing: Belmont Metropolitan Handicap (Met Mile)
+  {
+    const metMileTime = new Date(`${DATE_ET}T21:00:00Z`) // ~5pm ET
+    const evMetMile = await insert<any>('event: Metropolitan Handicap (Met Mile)',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'Belmont Metropolitan Handicap — Met Mile',
+        sport:             'Horse Racing',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     metMileTime.toISOString(),
+        streaming_info:    'NBC / Peacock — Belmont Park, Elmont, NY',
+        notes:             'Grade 1, $1M, 1 mile on dirt. Belmont Stakes undercard. Field TBD — update entries and odds before race.',
+      }).select().single()
+    )
+    const MET_MILE_FIELD: { label: string; odds: number }[] = [
+      { label: 'TBD Favorite',      odds:  -150 },
+      { label: 'TBD Contender 2',   odds:   250 },
+      { label: 'TBD Contender 3',   odds:   400 },
+      { label: 'TBD Contender 4',   odds:   600 },
+      { label: 'TBD Contender 5',   odds:   800 },
+      { label: 'TBD Contender 6',   odds:  1200 },
+      { label: 'TBD Contender 7',   odds:  2000 },
+      { label: 'Field / Other',     odds:  3000 },
+    ]
+    for (const horse of MET_MILE_FIELD) {
+      await insert<any>(`  Met Mile: ${horse.label}`,
+        admin.from('bet_options').insert({
+          event_id: evMetMile.id, label: horse.label, odds: horse.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('Met Mile field TBD — update all entries and odds once horses are confirmed.')
+  }
+
+  // Lacrosse: PLL Boston Guard vs California Palms
+  {
+    const pll1Time = new Date(`${DATE_ET}T17:00:00Z`) // 1pm ET
+    const evPLL1 = await insert<any>('event: PLL Boston Guard vs California Palms',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'PLL: Boston Guard vs California Palms',
+        sport:             'Lacrosse',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     pll1Time.toISOString(),
+        streaming_info:    'ESPN / ESPN+',
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'Boston Guard win',     odds: -140 },
+      { label: 'California Palms win', odds:  120 },
+    ]) {
+      await insert<any>(`  PLL: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evPLL1.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('PLL Boston Guard vs California Palms odds are estimates.')
+  }
+
+  // Lacrosse: PLL Boston Cannons vs Philadelphia Waterdogs
+  {
+    const pll2Time = new Date(`${DATE_ET}T21:30:00Z`) // 5:30pm ET
+    const evPLL2 = await insert<any>('event: PLL Boston Cannons vs Philadelphia Waterdogs',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'PLL: Boston Cannons vs Philadelphia Waterdogs',
+        sport:             'Lacrosse',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     pll2Time.toISOString(),
+        streaming_info:    'ESPN / ESPN+',
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'Boston Cannons win',         odds: -120 },
+      { label: 'Philadelphia Waterdogs win', odds:  100 },
+    ]) {
+      await insert<any>(`  PLL: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evPLL2.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('PLL Boston Cannons vs Philadelphia Waterdogs odds are estimates.')
+  }
+
+  // AFL: Western Bulldogs vs Hawthorn (Round 13, 2:15pm AEST June 6 = 12:15am ET June 6)
+  {
+    const aflTime1 = new Date(`${DATE_ET}T04:15:00Z`)
+    const evAFL1 = await insert<any>('event: AFL R13 Western Bulldogs vs Hawthorn',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'AFL R13: Western Bulldogs vs Hawthorn',
+        sport:             'AFL',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     aflTime1.toISOString(),
+        streaming_info:    'Fox Footy / Kayo — Marvel Stadium, Melbourne',
+        notes:             '2:15pm AEST June 6 (12:15am ET June 6). Round 13.',
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'Western Bulldogs win', odds: -120 },
+      { label: 'Hawthorn win',         odds:  100 },
+    ]) {
+      await insert<any>(`  AFL: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evAFL1.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('AFL Bulldogs vs Hawthorn odds are estimates — update before game time.')
+  }
+
+  // AFL: Gold Coast Suns vs Brisbane Lions (Round 13, 8:15pm AEST June 6 = 6:15am ET June 6)
+  {
+    const aflTime2 = new Date(`${DATE_ET}T10:15:00Z`)
+    const evAFL2 = await insert<any>('event: AFL R13 Gold Coast vs Brisbane Lions',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              'AFL R13: Gold Coast Suns vs Brisbane Lions',
+        sport:             'AFL',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     aflTime2.toISOString(),
+        streaming_info:    'Fox Footy / Kayo — Heritage Bank Stadium, Carrara',
+        notes:             '8:15pm AEST June 6 (6:15am ET June 6). Round 13 Queensland derby.',
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'Brisbane Lions win',  odds: -160 },
+      { label: 'Gold Coast Suns win', odds:  140 },
+    ]) {
+      await insert<any>(`  AFL: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evAFL2.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn('AFL Gold Coast vs Brisbane odds are estimates — update before game time.')
+  }
+
+  // AFL: Carlton vs Essendon — King's Birthday (June 8)
+  {
+    const aflTime3 = new Date('2026-06-08T05:20:00Z') // 3:20pm AEST June 8 = 1:20am ET June 8
+    const evAFL3 = await insert<any>('event: AFL Carlton vs Essendon (Kings Birthday)',
+      admin.from('events').insert({
+        betstravaganza_id: bzId,
+        name:              "AFL R14: Carlton vs Essendon — King's Birthday",
+        sport:             'AFL',
+        category:          'optional',
+        bet_type:          'odds',
+        start_time_et:     aflTime3.toISOString(),
+        streaming_info:    'Fox Footy / Kayo — Melbourne Cricket Ground',
+        notes:             "King's Birthday public holiday fixture. 3:20pm AEST June 8 (1:20am ET June 8). Traditional MCG marquee match.",
+      }).select().single()
+    )
+    for (const o of [
+      { label: 'Carlton win',  odds: -110 },
+      { label: 'Essendon win', odds: -110 },
+    ]) {
+      await insert<any>(`  AFL: ${o.label}`,
+        admin.from('bet_options').insert({
+          event_id: evAFL3.id, label: o.label, odds: o.odds,
+          max_drafts: 1, odds_source: 'manual',
+        }).select().single()
+      )
+    }
+    warn("Carlton vs Essendon King's Birthday odds are estimates — update before game time.")
+  }
+
   // ── 12. Slate Games ───────────────────────────────────────────────────────
   log('\nCreating slate games...')
   const slateCounts: Record<string, number> = {}
@@ -1110,6 +1438,16 @@ async function run() {
   log('     🥊 Boxing: Garcia vs Moloney + Yabuki vs Calixto (Japan)')
   log('     🏎  F1 Monaco GP Qualifying — pole position (9am ET)')
   log('     🏏 West Indies vs Sri Lanka ODI 2 (~10:30am ET)')
+  log('     🏀 WNBA: Washington Mystics @ Atlanta Dream (6pm ET)')
+  log('     ⚽ USA Women vs Brazil (5:30pm ET, São Paulo)')
+  log('     ⛳ PGA Memorial Tournament Rd 3 — Lowest Score (Muirfield Village, ~7:30am ET)')
+  log('     🚴 Critérium du Dauphiné Stage 1 — Winner (~10am ET)')
+  log('     🏇 Met Mile (Metropolitan Handicap, Grade 1, ~5pm ET, Belmont Park)')
+  log('     🥍 PLL: Boston Guard vs California Palms (1pm ET)')
+  log('     🥍 PLL: Boston Cannons vs Philadelphia Waterdogs (5:30pm ET)')
+  log('     🏉 AFL R13: Western Bulldogs vs Hawthorn (2:15pm AEST / 12:15am ET)')
+  log('     🏉 AFL R13: Gold Coast Suns vs Brisbane Lions (8:15pm AEST / 6:15am ET)')
+  log('     🏉 AFL R14: Carlton vs Essendon — King\'s Birthday (June 8, 3:20pm AEST)')
 
   log(`\n   ── Slate Games: ${totalSlate} total ──`)
   Object.entries(slateCounts).forEach(([sport, n]) => log(`     ${n}× ${sport}`))
