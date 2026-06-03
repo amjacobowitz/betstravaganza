@@ -48,76 +48,72 @@ export default async function LeaderboardPage() {
         </div>
       )}
 
-      {/* Leaderboard table */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-2 text-left text-xs uppercase tracking-wider text-muted">
-                <th className="px-4 py-3 w-10">#</th>
-                <th className="px-4 py-3">Team</th>
-                <th className="px-4 py-3 text-right">W-L-P</th>
-                <th className="px-4 py-3 text-right font-bold text-white">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e, i) => {
-                const startingBankroll = Number(bz.starting_bankroll)
-                const isProfit = e.total >= startingBankroll
-                return (
-                  <tr key={e.userId} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors">
-                    <td className="px-4 py-3 font-mono">
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted">
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                        </span>
-                        {e.rankChange != null && e.rankChange > 0 && (
-                          <span className="text-win text-xs font-bold">↑{e.rankChange}</span>
-                        )}
-                        {e.rankChange != null && e.rankChange < 0 && (
-                          <span className="text-loss text-xs font-bold">↓{Math.abs(e.rankChange)}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link href={`/picks?user=${e.userId}`} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-                        <BirdAvatar teamName={e.teamName} size={36} />
-                        <div>
-                          <div className="font-semibold text-white">{e.teamName}</div>
-                          <div className="text-xs text-muted">{e.name}</div>
-                          {e.motto && <div className="text-xs text-accent/70 italic">"{e.motto}"</div>}
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">
-                      <span className="text-win">{e.wins}</span>
-                      <span className="text-muted">-</span>
-                      <span className="text-loss">{e.losses}</span>
-                      <span className="text-muted">-</span>
-                      <span className="text-push">{e.pushes}</span>
-                      {e.pendingPicks > 0 && (
-                        <div className="text-xs text-muted">{e.pendingPicks} live</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`font-bold font-mono text-base ${isProfit ? 'text-win' : 'text-loss'}`}>
-                        ${e.total.toFixed(0)}
+      {/* Leaderboard cards */}
+      <div className="space-y-2">
+        {entries.length === 0 && (
+          <Card><p className="text-muted text-sm text-center py-4">Draft hasn't started yet.</p></Card>
+        )}
+        {entries.map((e, i) => {
+          const startingBankroll = Number(bz.starting_bankroll)
+          const isProfit = e.total >= startingBankroll
+          const draftDelta = e.bankroll - startingBankroll
+          return (
+            <Link key={e.userId} href={`/picks?user=${e.userId}`} className="block">
+              <Card className="hover:border-accent/40 transition-colors p-3">
+                <div className="flex items-center gap-3">
+                  {/* Rank */}
+                  <div className="w-8 shrink-0 text-center">
+                    <div className="text-base leading-none">
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : <span className="font-mono text-sm text-muted">{i + 1}</span>}
+                    </div>
+                    {e.rankChange != null && e.rankChange > 0 && (
+                      <div className="text-win text-xs font-bold mt-0.5">↑{e.rankChange}</div>
+                    )}
+                    {e.rankChange != null && e.rankChange < 0 && (
+                      <div className="text-loss text-xs font-bold mt-0.5">↓{Math.abs(e.rankChange)}</div>
+                    )}
+                  </div>
+
+                  {/* Avatar + name */}
+                  <BirdAvatar teamName={e.teamName} size={40} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-white leading-tight truncate">{e.teamName}</div>
+                    <div className="text-xs text-muted truncate">{e.name}</div>
+                    {e.motto && <div className="text-xs text-accent/70 italic truncate">"{e.motto}"</div>}
+                    {/* Breakdown row */}
+                    <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+                      <span className="text-xs font-mono">
+                        <span className="text-win">{e.wins}</span>
+                        <span className="text-muted">-</span>
+                        <span className="text-loss">{e.losses}</span>
+                        <span className="text-muted">-</span>
+                        <span className="text-push">{e.pushes}</span>
+                        {e.pendingPicks > 0 && <span className="text-muted"> ({e.pendingPicks} live)</span>}
                       </span>
-                    </td>
-                  </tr>
-                )
-              })}
-              {entries.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
-                    Draft hasn't started yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                      <span className={`text-xs font-mono ${draftDelta > 0 ? 'text-win' : draftDelta < 0 ? 'text-loss' : 'text-muted'}`}>
+                        draft {draftDelta >= 0 ? '+' : ''}${draftDelta.toFixed(0)}
+                      </span>
+                      {e.confidenceBonus > 0 && (
+                        <span className="text-xs font-mono text-accent-2">slate +${e.confidenceBonus}</span>
+                      )}
+                      {e.bonuses > 0 && (
+                        <span className="text-xs font-mono text-win">bonus +${e.bonuses}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  <div className="shrink-0 text-right">
+                    <div className={`text-lg font-bold font-mono ${isProfit ? 'text-win' : 'text-loss'}`}>
+                      ${e.total.toFixed(0)}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          )
+        })}
+      </div>
 
       <p className="text-center text-xs text-muted">
         Starting bankroll: ${Number(bz.starting_bankroll).toLocaleString()} · ${Number(bz.stake_amount)} per pick
