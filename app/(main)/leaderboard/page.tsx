@@ -56,7 +56,6 @@ export default async function LeaderboardPage() {
         {entries.map((e, i) => {
           const startingBankroll = Number(bz.starting_bankroll)
           const isProfit = e.total >= startingBankroll
-          const draftDelta = e.bankroll - startingBankroll
           return (
             <Link key={e.userId} href={`/picks?user=${e.userId}`} className="block">
               <Card className="hover:border-accent/40 transition-colors p-3">
@@ -88,16 +87,13 @@ export default async function LeaderboardPage() {
                         <span className="text-loss">{e.losses}</span>
                         <span className="text-muted">-</span>
                         <span className="text-push">{e.pushes}</span>
-                        {e.pendingPicks > 0 && <span className="text-muted"> ({e.pendingPicks} live)</span>}
-                      </span>
-                      <span className={`text-xs font-mono ${draftDelta > 0 ? 'text-win' : draftDelta < 0 ? 'text-loss' : 'text-muted'}`}>
-                        draft {draftDelta >= 0 ? '+' : ''}${draftDelta.toFixed(0)}
+                        {e.pendingPicks > 0 && <span className="text-muted"> · {e.pendingPicks} live</span>}
                       </span>
                       {e.confidenceBonus > 0 && (
-                        <span className="text-xs font-mono text-accent-2">slate +${e.confidenceBonus}</span>
+                        <span className="text-xs font-mono text-accent-2">+${e.confidenceBonus} slate</span>
                       )}
                       {e.bonuses > 0 && (
-                        <span className="text-xs font-mono text-win">bonus +${e.bonuses}</span>
+                        <span className="text-xs font-mono text-win">+${e.bonuses} bonus</span>
                       )}
                     </div>
                   </div>
