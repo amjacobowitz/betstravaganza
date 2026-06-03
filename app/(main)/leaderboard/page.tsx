@@ -56,6 +56,7 @@ export default async function LeaderboardPage() {
         {entries.map((e, i) => {
           const startingBankroll = Number(bz.starting_bankroll)
           const isProfit = e.total >= startingBankroll
+          const draftDelta = e.bankroll - startingBankroll
           return (
             <Link key={e.userId} href={`/picks?user=${e.userId}`} className="block">
               <Card className="hover:border-accent/40 transition-colors p-3">
@@ -80,20 +81,29 @@ export default async function LeaderboardPage() {
                     <div className="text-xs text-muted truncate">{e.name}</div>
                     {e.motto && <div className="text-xs text-accent/70 italic truncate">"{e.motto}"</div>}
                     {/* Breakdown row */}
-                    <div className="flex items-center gap-2.5 mt-1 flex-wrap">
-                      <span className="text-xs font-mono">
+                    <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
+                      <span className="font-mono text-muted">
                         <span className="text-win">{e.wins}</span>
-                        <span className="text-muted">-</span>
+                        <span>-</span>
                         <span className="text-loss">{e.losses}</span>
-                        <span className="text-muted">-</span>
+                        <span>-</span>
                         <span className="text-push">{e.pushes}</span>
-                        {e.pendingPicks > 0 && <span className="text-muted"> · {e.pendingPicks} live</span>}
+                        {e.pendingPicks > 0 && <span> · {e.pendingPicks} live</span>}
                       </span>
-                      {e.confidenceBonus > 0 && (
-                        <span className="text-xs font-mono text-accent-2">+${e.confidenceBonus} slate</span>
-                      )}
+                      <span className="text-muted">
+                        Picks: <span className={`font-mono ${draftDelta > 0 ? 'text-win' : draftDelta < 0 ? 'text-loss' : 'text-muted'}`}>
+                          {draftDelta >= 0 ? '+' : ''}${draftDelta.toFixed(0)}
+                        </span>
+                      </span>
+                      <span className="text-muted">
+                        Slate: <span className={`font-mono ${e.confidenceBonus > 0 ? 'text-accent-2' : 'text-muted'}`}>
+                          {e.confidenceBonus > 0 ? `+$${e.confidenceBonus}` : '—'}
+                        </span>
+                      </span>
                       {e.bonuses > 0 && (
-                        <span className="text-xs font-mono text-win">+${e.bonuses} bonus</span>
+                        <span className="text-muted">
+                          Bonus: <span className="font-mono text-win">+${e.bonuses}</span>
+                        </span>
                       )}
                     </div>
                   </div>
