@@ -57,7 +57,7 @@ export default async function DraftPage({
   const requiredEventIds = scoringEvents.filter(e => e.category === 'required').map(e => e.id)
 
   const draftOrder: string[] = bz.draft_order ?? []
-  const totalPicks = (bz.player_count ?? 11) * (bz.round_count ?? 11)
+  const totalPicks = draftOrder.length * (bz.round_count ?? 11)
   const currentPickIndex = bz.current_pick_index ?? 0
   const currentUserId = computeCurrentPicker(draftOrder, currentPickIndex, bz.round_count ?? 11)
 

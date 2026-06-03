@@ -42,7 +42,7 @@ export default async function BzOverviewPage({
           <div className="text-muted">Status</div>
           <div><Badge variant={statusVariant[bz.status] as any}>{bz.status.toUpperCase()}</Badge></div>
           <div className="text-muted">Players</div>
-          <div className="text-white">{bz.player_count}</div>
+          <div className="text-white">{(bz.draft_order as string[] | null)?.length ?? bz.player_count}</div>
           <div className="text-muted">Rounds</div>
           <div className="text-white">{bz.round_count}</div>
           <div className="text-muted">Stake</div>
@@ -53,7 +53,7 @@ export default async function BzOverviewPage({
           <div className="text-white">${Number(bz.confidence_multiplier)}/rank</div>
           <div className="text-muted">Current Pick</div>
           <div className="text-white">
-            {bz.current_pick_index + 1} / {bz.player_count * bz.round_count}
+            {bz.current_pick_index + 1} / {((bz.draft_order as string[] | null)?.length ?? bz.player_count) * bz.round_count}
           </div>
           <div className="text-muted">Event Start (slate locks)</div>
           <div className="text-white">{fmtDate((bz as any).start_datetime)}</div>

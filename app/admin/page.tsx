@@ -59,7 +59,7 @@ export default async function AdminIndexPage() {
                     </Badge>
                   </div>
                   <div className="text-xs text-muted space-x-3">
-                    <span>{bz.player_count} players · {bz.round_count} rounds</span>
+                    <span>{(bz.draft_order as string[] | null)?.length ?? bz.player_count} players · {bz.round_count} rounds</span>
                     <span>${Number(bz.stake_amount)}/pick</span>
                     {(bz as any).start_datetime && (
                       <span>Starts {formatDate((bz as any).start_datetime)}</span>

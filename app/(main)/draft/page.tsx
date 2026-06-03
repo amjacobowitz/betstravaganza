@@ -53,10 +53,10 @@ export default async function PublicDraftPage({
   const params = await searchParams
 
   const roundCount = bz.round_count ?? 6
-  const playerCount = bz.player_count ?? users.length
+  const draftOrder: string[] = bz.draft_order ?? []
+  const playerCount = draftOrder.length || bz.player_count || users.length
   const totalPicks = playerCount * roundCount
   const currentPickIndex = bz.current_pick_index ?? 0
-  const draftOrder: string[] = bz.draft_order ?? []
 
   const status = getDraftStatus(currentPickIndex, totalPicks, rawPicks.length)
   const statusInfo = statusConfig[status]
