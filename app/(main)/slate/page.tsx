@@ -138,7 +138,9 @@ export default async function SlatePage({
   const revealed = !!(bz as any).revealed
 
   const isLocked = !!(bz as any).start_datetime && new Date() > new Date((bz as any).start_datetime)
-  const activeTab = isLocked ? (params.tab ?? 'my') : null
+  // "All Slates" tab only visible once picks are revealed
+  const canSeeAll = isLocked && revealed
+  const activeTab = isLocked ? (canSeeAll ? (params.tab ?? 'my') : 'my') : null
 
   const totalGames = slateGames.length
   const confidenceMultiplier = Number(bz.confidence_multiplier)
@@ -187,8 +189,8 @@ export default async function SlatePage({
         </Card>
       )}
 
-      {/* Tabs — only after lock */}
-      {isLocked && slateGames.length > 0 && (
+      {/* Tabs — only after lock and once revealed */}
+      {canSeeAll && slateGames.length > 0 && (
         <div className="flex items-center gap-2">
           {(['my', 'all'] as const).map(tab => (
             <Link
@@ -281,8 +283,8 @@ export default async function SlatePage({
         </div>
       )}
 
-      {/* Game cards: only on All Slates tab after lock */}
-      {isLocked && activeTab === 'all' && (
+      {/* Game cards: only on All Slates tab after lock + reveal */}
+      {canSeeAll && activeTab === 'all' && (
         <div className="space-y-4">
           {slateGames.map((game: any) => {
             const gamePicks = slatePicks.filter((p: any) => p.slate_game_id === game.id)
@@ -361,8 +363,8 @@ export default async function SlatePage({
         </div>
       )}
 
-      {/* Bonus totals: only on All Slates tab after lock */}
-      {isLocked && activeTab === 'all' && revealed && users.length > 0 && slateGames.length > 0 && (
+      {/* Bonus totals: only on All Slates tab after lock + reveal */}
+      {canSeeAll && activeTab === 'all' && revealed && users.length > 0 && slateGames.length > 0 && (
         <Card>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted mb-3">Slate Bonus Totals</h2>
           <div className="divide-y divide-border/30">
