@@ -4,20 +4,10 @@ import { redirect } from 'next/navigation'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { phoneToEmail } from '@/lib/utils/phone'
 
-async function postLoginRedirect(isAdmin: boolean) {
-  // Use admin client so RLS doesn't block the read — auth session cookies
-  // set by signInWithPassword aren't visible to new createClient() calls
-  // within the same server action.
-  const adminSupabase = await createAdminClient()
-  const { data: bz } = await adminSupabase
-    .from('betstravaganza')
-    .select('revealed')
-    .neq('status', 'complete')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (!isAdmin && bz && !bz.revealed) redirect('/slate')
-  redirect('/leaderboard')
+async function postLoginRedirect() {
+  // Redirect to root — the root page reads the fresh session cookie and
+  // routes to /slate (hidden) or /leaderboard (revealed) as appropriate.
+  redirect('/')
 }
 
 export async function signUp(formData: FormData) {
@@ -57,7 +47,7 @@ export async function signUp(formData: FormData) {
     if (signInError) return { error: signInError.message }
   }
 
-  await postLoginRedirect(isAdmin)
+  await postLoginRedirect()
 }
 
 export async function login(formData: FormData) {
@@ -73,7 +63,7 @@ export async function login(formData: FormData) {
   }
 
   const { data: profile } = await supabase.from('users').select('is_admin').eq('id', (await supabase.auth.getUser()).data.user!.id).single()
-  await postLoginRedirect(!!profile?.is_admin)
+  await postLoginRedirect()
 }
 
 export async function logout() {

@@ -103,7 +103,7 @@ describe('signUp', () => {
         is_admin: false,
       }),
     )
-    expect(redirectMock).toHaveBeenCalledWith('/leaderboard')
+    expect(redirectMock).toHaveBeenCalledWith(`/`)
   })
 
   it('grants admin flag to the initial admin email', async () => {
@@ -166,7 +166,7 @@ describe('signUp', () => {
 describe('login', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('redirects to leaderboard on success', async () => {
+  it('redirects to root on success', async () => {
     mockSignIn.mockResolvedValue({ error: null })
 
     await login(makeFormData({ phone: TEST_PHONE, password: 'pass' }))
@@ -175,7 +175,7 @@ describe('login', () => {
       email: TEST_EMAIL,
       password: 'pass',
     })
-    expect(redirectMock).toHaveBeenCalledWith('/leaderboard')
+    expect(redirectMock).toHaveBeenCalledWith('/')
   })
 
   it('returns error on bad credentials', async () => {

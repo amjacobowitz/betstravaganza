@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { getActive } from '@/lib/db/betstravaganza'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Home() {
   const [bz, supabase] = await Promise.all([getActive(), createClient()])
   const { data: { user } } = await supabase.auth.getUser()
