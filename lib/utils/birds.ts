@@ -13,17 +13,17 @@ export const BIRD_BY_TEAM: Record<string, BirdInfo> = {
     imageUrl: '/birds/Aaron_American Robin.jpg',
     color: '#e06030', // orange-red breast
   },
-  "Kirtland's Warblers": {
-    species: "Kirtland's Warbler",
-    plural: "Kirtland's Warblers",
-    imageUrl: "/birds/PJ_Kirtland's Warbler.jpeg",
-    color: '#c8c420', // yellow-olive underparts
+  'Great Horned Owls': {
+    species: 'Great Horned Owl',
+    plural: 'Great Horned Owls',
+    imageUrl: '/birds/PJ_Great Horned Owl.jpg',
+    color: '#8b6914', // warm brown barring
   },
-  'Sandhill Cranes': {
-    species: 'Sandhill Crane',
-    plural: 'Sandhill Cranes',
-    imageUrl: '/birds/Marco_Sandhill Crane.jpg',
-    color: '#a0b8c8', // blue-gray plumage
+  'American Crows': {
+    species: 'American Crow',
+    plural: 'American Crows',
+    imageUrl: '/birds/Marco_American Crow.jpg',
+    color: '#2a2a2a', // glossy black
   },
   'Tufted Titmice': {
     species: 'Tufted Titmouse',
@@ -67,11 +67,11 @@ export const BIRD_BY_TEAM: Record<string, BirdInfo> = {
     imageUrl: '/birds/Reid_Wood Duck.jpg',
     color: '#20a060', // iridescent green head
   },
-  'Eastern Bluebirds': {
-    species: 'Eastern Bluebird',
-    plural: 'Eastern Bluebirds',
-    imageUrl: '/birds/Shad_Eastern Bluebird.jpg',
-    color: '#2090e0', // vivid sky blue
+  'Blue Jays': {
+    species: 'Blue Jay',
+    plural: 'Blue Jays',
+    imageUrl: '/birds/Shad_Blue Jay.jpg',
+    color: '#2090e0', // vivid blue
   },
 }
 
