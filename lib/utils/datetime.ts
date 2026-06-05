@@ -28,15 +28,22 @@ export function etDatetimeLocalToISO(localStr: string): string {
   const parts = localStr.match(/\d+/g)
   if (!parts || parts.length < 5) return ''
   const [y, mo, d, h, mi] = parts.map(Number)
-  // Probe: treat the local string as UTC to anchor a moment in time
-  const probeMs = Date.UTC(y, mo - 1, d, h, mi)
-  // Find what ET clock shows for that probe UTC moment
-  const etParts = new Intl.DateTimeFormat('en-US', {
-    timeZone: TZ, hour12: false, hour: '2-digit', minute: '2-digit',
-  }).formatToParts(new Date(probeMs))
-  const etHour = parseInt(etParts.find(p => p.type === 'hour')!.value) % 24
-  const etMin  = parseInt(etParts.find(p => p.type === 'minute')!.value)
-  // Shift probe so ET clock shows h:mi
-  const deltaMs = ((h - etHour) * 60 + (mi - etMin)) * 60_000
-  return new Date(probeMs + deltaMs).toISOString()
+
+  // Try both ET offsets (EDT = UTC-4, EST = UTC-5) and keep the one that
+  // round-trips correctly back to the user's intended local time.
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
+  for (const offsetH of [4, 5]) {
+    const ms = Date.UTC(y, mo - 1, d, h + offsetH, mi)
+    const p = fmt.formatToParts(new Date(ms))
+    const g = (t: string) => parseInt(p.find(x => x.type === t)!.value) % (t === 'hour' ? 24 : Infinity)
+    if (g('year') === y && g('month') === mo && g('day') === d && g('hour') === h && g('minute') === mi) {
+      return new Date(ms).toISOString()
+    }
+  }
+  // Fallback: assume EDT
+  return new Date(Date.UTC(y, mo - 1, d, h + 4, mi)).toISOString()
 }
