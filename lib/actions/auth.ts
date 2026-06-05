@@ -5,9 +5,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { phoneToEmail } from '@/lib/utils/phone'
 
 async function postLoginRedirect() {
-  // Redirect to root — the root page reads the fresh session cookie and
-  // routes to /slate (hidden) or /leaderboard (revealed) as appropriate.
-  redirect('/')
+  redirect('/slate')
 }
 
 export async function signUp(formData: FormData) {

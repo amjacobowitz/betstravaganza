@@ -103,7 +103,7 @@ describe('signUp', () => {
         is_admin: false,
       }),
     )
-    expect(redirectMock).toHaveBeenCalledWith(`/`)
+    expect(redirectMock).toHaveBeenCalledWith('/slate')
   })
 
   it('grants admin flag to the initial admin email', async () => {
@@ -175,7 +175,7 @@ describe('login', () => {
       email: TEST_EMAIL,
       password: 'pass',
     })
-    expect(redirectMock).toHaveBeenCalledWith('/')
+    expect(redirectMock).toHaveBeenCalledWith('/slate')
   })
 
   it('returns error on bad credentials', async () => {
