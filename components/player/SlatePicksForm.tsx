@@ -164,7 +164,7 @@ function SortableGameRow({
           </div>
           <div className="text-xs text-muted">
             {game.sport_label} · {formatTime(game.start_time_et)}
-            {game.spread !== null && ` · ${game.spread > 0 ? '+' : ''}${game.spread}`}
+            {game.spread !== null && ` · ${game.home_team.split(' ').pop()} ${game.spread > 0 ? '+' : ''}${game.spread}`}
           </div>
         </div>
 
