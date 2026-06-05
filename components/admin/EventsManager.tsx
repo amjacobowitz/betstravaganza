@@ -14,7 +14,7 @@ import {
 import { fetchOddsFromAPI } from '@/lib/actions/admin/fetch-odds'
 import type { ProposedOddsUpdate, ProposedSpreadUpdate, UnmatchedEvent } from '@/lib/actions/admin/fetch-odds'
 import { SPORTS, sportEmoji } from '@/lib/utils/sports'
-import { toDatetimeLocalET } from '@/lib/utils/datetime'
+import { toDatetimeLocalET, etDatetimeLocalToISO } from '@/lib/utils/datetime'
 
 interface BetOption {
   id: string
@@ -72,6 +72,8 @@ function EventForm({ bzId, event, onDone }: {
     const fd = new FormData(e.currentTarget)
     fd.set('betstravaganzaId', bzId)
     if (event) fd.set('id', event.id)
+    const raw = fd.get('startTimeEt') as string
+    if (raw) fd.set('startTimeEt', etDatetimeLocalToISO(raw))
     const result = await upsertEvent(fd)
     if (result.error) { setError(result.error); setLoading(false) }
     else { onDone() }
@@ -173,6 +175,8 @@ function SlateGameForm({ bzId, game, onDone }: {
     const fd = new FormData(e.currentTarget)
     fd.set('betstravaganzaId', bzId)
     if (game) fd.set('id', game.id)
+    const raw = fd.get('startTimeEt') as string
+    if (raw) fd.set('startTimeEt', etDatetimeLocalToISO(raw))
     const result = await upsertSlateGame(fd)
     if (result.error) { setError(result.error); setLoading(false) }
     else { onDone() }
