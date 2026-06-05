@@ -54,7 +54,7 @@ function formatOdds(odds: number | null | undefined) {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
@@ -63,10 +63,10 @@ function formatTime(iso: string) {
 
 function formatLockTime(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     month: 'short', day: 'numeric',
     hour: 'numeric', minute: '2-digit', hour12: true,
-  }) + ' ET'
+  }) + ' CT'
 }
 
 // ─── Sortable game row ───────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import { bucketItem, type ScheduleBucket } from '@/lib/utils/schedule'
 function formatTime(iso: string | null) {
   if (!iso) return 'TBD'
   return new Date(iso).toLocaleTimeString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
@@ -179,7 +179,7 @@ export default async function SchedulePage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-white">Watch Guide</h1>
-        <p className="text-sm text-muted mt-1">All times ET · {allItems.length} events</p>
+        <p className="text-sm text-muted mt-1">All times CT · {allItems.length} events</p>
       </div>
 
       {allItems.length === 0 && (

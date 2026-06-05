@@ -8,16 +8,16 @@ import { sportEmoji } from '@/lib/utils/sports'
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  }) + ' ET'
+  }) + ' CT'
 }
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', {
-    timeZone: 'America/New_York',
+    timeZone: 'America/Chicago',
     month: 'short',
     day: 'numeric',
   })
