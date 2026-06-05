@@ -48,7 +48,7 @@ interface Props {
 }
 
 function formatOdds(odds: number | null | undefined) {
-  if (odds == null) return 'N/A'
+  if (odds == null) return null
   return odds > 0 ? `+${odds}` : `${odds}`
 }
 
@@ -208,9 +208,11 @@ function SortableGameRow({
                   {team}
                   <span className="ml-1 text-xs opacity-60">{side}</span>
                 </span>
-                <span className={`text-xs font-mono shrink-0 ${picked ? 'text-accent' : oddsColor}`}>
-                  {oddsStr}
-                </span>
+                {oddsStr && (
+                  <span className={`text-xs font-mono shrink-0 ${picked ? 'text-accent' : oddsColor}`}>
+                    {oddsStr}
+                  </span>
+                )}
               </div>
             </button>
           )
