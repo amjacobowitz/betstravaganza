@@ -117,40 +117,37 @@ function SortableGameRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-xl border bg-surface p-3 space-y-2 transition-all ${
-        isDragging ? 'shadow-xl opacity-90 border-accent/60' : 'border-border'
-      } ${isTop ? 'ring-1 ring-accent/30' : ''}`}
+      {...(!locked ? { ...attributes, ...listeners } : {})}
+      className={`rounded-xl border bg-surface p-3 space-y-2 transition-all select-none ${
+        locked ? '' : 'cursor-grab active:cursor-grabbing touch-none'
+      } ${isDragging ? 'shadow-xl opacity-90 border-accent/60' : 'border-border'} ${
+        isTop ? 'ring-1 ring-accent/30' : ''
+      }`}
     >
       <div className="flex items-start gap-2">
-        {/* Reorder controls: drag handle + up/down arrows */}
+        {/* Reorder controls: up/down arrows + drag hint */}
         {!locked && (
           <div className="flex flex-col items-center gap-0.5 mt-0.5 shrink-0">
             <button
               onClick={onMoveUp}
               disabled={isTop}
+              onPointerDown={e => e.stopPropagation()}
               className="text-muted hover:text-white disabled:opacity-20 disabled:cursor-default transition-colors p-0.5"
               aria-label="Move up"
-              tabIndex={0}
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3l6 8H2z"/></svg>
             </button>
-            <button
-              {...attributes}
-              {...listeners}
-              className="cursor-grab active:cursor-grabbing text-muted hover:text-white transition-colors p-0.5 touch-none"
-              aria-label="Drag to reorder"
-              tabIndex={0}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M5 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm6-10a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+            <span className="text-muted/30 py-0.5" aria-hidden>
+              <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                <rect x="0" y="0" width="10" height="2" rx="1"/><rect x="0" y="6" width="10" height="2" rx="1"/><rect x="0" y="12" width="10" height="2" rx="1"/>
               </svg>
-            </button>
+            </span>
             <button
               onClick={onMoveDown}
               disabled={isBottom}
+              onPointerDown={e => e.stopPropagation()}
               className="text-muted hover:text-white disabled:opacity-20 disabled:cursor-default transition-colors p-0.5"
               aria-label="Move down"
-              tabIndex={0}
             >
               <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 13L2 5h12z"/></svg>
             </button>
@@ -194,6 +191,7 @@ function SortableGameRow({
               key={side}
               aria-label={`${team} ${side}`}
               onClick={() => !locked && onPickTeam(game.id, side)}
+              onPointerDown={e => e.stopPropagation()}
               disabled={locked}
               className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all text-left ${
                 picked
@@ -303,7 +301,8 @@ export function SlatePicksForm({
   }, [gameOrder, teamPicks])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // delay: quick taps stay as clicks; hold 200ms to drag
+    useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
