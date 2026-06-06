@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { upsertResult, upsertSlateResult, deleteSlateResult } from '@/lib/actions/admin/results'
 import { fetchResultsFromAPI } from '@/lib/actions/admin/fetch-results'
-import type { ProposedSlateResult, NotFoundSlateGame } from '@/lib/actions/admin/fetch-results'
+import type { ProposedSlateResult, NotFoundSlateGame, ProposedEventResult, NotFoundEvent } from '@/lib/actions/admin/fetch-results'
 import { sportEmoji } from '@/lib/utils/sports'
 
 type GameStatus = 'not_started' | 'in_progress' | 'complete'
@@ -366,7 +366,9 @@ export function ResultsForm({ events, slateGames, bzId }: {
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [fetchDone, setFetchDone] = useState(false)
   const [proposed, setProposed] = useState<ProposedSlateResult[]>([])
+  const [proposedEvents, setProposedEvents] = useState<ProposedEventResult[]>([])
   const [notFound, setNotFound] = useState<NotFoundSlateGame[]>([])
+  const [notFoundEvents, setNotFoundEvents] = useState<NotFoundEvent[]>([])
   const [skipped, setSkipped] = useState<Set<string>>(new Set())
   const [confirmAllLoading, setConfirmAllLoading] = useState(false)
 
@@ -377,13 +379,17 @@ export function ResultsForm({ events, slateGames, bzId }: {
     setFetchError(null)
     setFetchDone(false)
     setProposed([])
+    setProposedEvents([])
     setNotFound([])
+    setNotFoundEvents([])
     setSkipped(new Set())
     const res = await fetchResultsFromAPI(bzId)
     if (res.error) setFetchError(res.error)
     else {
       setProposed(res.proposed)
+      setProposedEvents(res.proposedEvents)
       setNotFound(res.notFound)
+      setNotFoundEvents(res.notFoundEvents)
       setFetchDone(true)
     }
     setFetchLoading(false)
@@ -391,8 +397,9 @@ export function ResultsForm({ events, slateGames, bzId }: {
 
   async function handleConfirmAll() {
     setConfirmAllLoading(true)
-    const toConfirm = proposed.filter(p => p.isCompleted && !skipped.has(p.slateGameId))
-    for (const p of toConfirm) {
+    // Confirm all completed slate results
+    const toConfirmSlate = proposed.filter(p => p.isCompleted && !skipped.has(p.slateGameId))
+    for (const p of toConfirmSlate) {
       const fd = new FormData()
       fd.set('slateGameId', p.slateGameId)
       fd.set('awayScore', String(p.awayScore))
@@ -400,14 +407,29 @@ export function ResultsForm({ events, slateGames, bzId }: {
       fd.set('bzId', bzId)
       await upsertSlateResult(fd)
     }
+    // Confirm all proposed event results
+    for (const e of proposedEvents) {
+      const fd = new FormData()
+      fd.set('eventId', e.eventId)
+      fd.set('bzId', bzId)
+      fd.append('winnerBetOptionId', e.winnerBetOptionId)
+      await upsertResult(fd)
+    }
     setProposed([])
+    setProposedEvents([])
     setNotFound([])
+    setNotFoundEvents([])
     setConfirmAllLoading(false)
   }
 
   function dismissGame(id: string) {
     setProposed(prev => prev.filter(p => p.slateGameId !== id))
     setNotFound(prev => prev.filter(p => p.slateGameId !== id))
+  }
+
+  function dismissEvent(id: string) {
+    setProposedEvents(prev => prev.filter(e => e.eventId !== id))
+    setNotFoundEvents(prev => prev.filter(e => e.eventId !== id))
   }
 
   function skipGame(id: string) {
@@ -456,25 +478,65 @@ export function ResultsForm({ events, slateGames, bzId }: {
                 const completed = proposed.filter(p => p.isCompleted).length
                 const live = proposed.filter(p => !p.isCompleted).length
                 const parts: string[] = []
-                if (completed > 0) parts.push(`${completed} completed`)
-                if (live > 0) parts.push(`${live} live/in-progress`)
-                if (notFound.length > 0) parts.push(`${notFound.length} not found`)
+                if (proposedEvents.length > 0) parts.push(`${proposedEvents.length} event${proposedEvents.length !== 1 ? 's' : ''}`)
+                if (completed > 0) parts.push(`${completed} slate`)
+                if (live > 0) parts.push(`${live} live`)
+                if (notFound.length + notFoundEvents.length > 0) parts.push(`${notFound.length + notFoundEvents.length} not found`)
                 return `API Results — ${parts.length ? parts.join(', ') : 'all games already saved or none completed yet'}`
               })()}
             </h3>
             <div className="flex gap-2">
-              {proposed.filter(p => p.isCompleted).length > 0 && (
+              {(proposedEvents.length > 0 || proposed.filter(p => p.isCompleted).length > 0) && (
                 <Button size="sm" loading={confirmAllLoading} onClick={handleConfirmAll}>
-                  Confirm All ({proposed.filter(p => p.isCompleted).length})
+                  Confirm All ({proposedEvents.length + proposed.filter(p => p.isCompleted).length})
                 </Button>
               )}
-              <Button size="sm" variant="ghost" onClick={() => { setProposed([]); setNotFound([]); setFetchDone(false) }}>
+              <Button size="sm" variant="ghost" onClick={() => { setProposed([]); setProposedEvents([]); setNotFound([]); setNotFoundEvents([]); setFetchDone(false) }}>
                 Dismiss
               </Button>
             </div>
           </div>
 
-          {/* Proposed results */}
+          {/* Proposed event results (draft picks) */}
+          {proposedEvents.map(e => (
+            <div key={e.eventId} className="flex items-center gap-3 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2.5">
+              <div className="flex-1">
+                <div className="text-xs text-muted mb-0.5">{e.sport}</div>
+                <div className="text-sm font-semibold text-white">{e.eventName}</div>
+                <div className="text-xs text-win mt-0.5">→ {e.winnerLabel} &middot; {e.resultDisplay}</div>
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <Button size="sm" onClick={async () => {
+                  const fd = new FormData()
+                  fd.set('eventId', e.eventId)
+                  fd.set('bzId', bzId)
+                  fd.append('winnerBetOptionId', e.winnerBetOptionId)
+                  await upsertResult(fd)
+                  dismissEvent(e.eventId)
+                }}>✓ Confirm</Button>
+                <Button size="sm" variant="ghost" onClick={() => dismissEvent(e.eventId)}>Skip</Button>
+              </div>
+            </div>
+          ))}
+
+          {/* Not-found events */}
+          {notFoundEvents.map(e => (
+            <div key={e.eventId} className="flex items-center gap-3 rounded-lg border border-accent-2/30 bg-accent-2/5 px-3 py-2.5">
+              <div className="flex-1">
+                <div className="text-xs text-muted mb-0.5">{e.sport}</div>
+                <div className="text-sm font-semibold text-white">{e.eventName}</div>
+                <div className="text-xs text-accent-2 mt-0.5">
+                  {e.reason === 'no_api_sport' && 'Sport not in API — enter manually'}
+                  {e.reason === 'no_match' && 'Game not found in API — enter manually'}
+                  {e.reason === 'not_completed' && 'Game not yet completed in API'}
+                  {e.reason === 'not_binary' && 'Multi-option event — enter manually'}
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => dismissEvent(e.eventId)}>Dismiss</Button>
+            </div>
+          ))}
+
+          {/* Proposed slate results */}
           {proposed.map(p => (
             <div key={p.slateGameId} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${p.isCompleted ? 'border-accent/30 bg-accent/5' : 'border-pending/40 bg-pending/5'}`}>
               <div className="flex-1">
