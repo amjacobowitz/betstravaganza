@@ -80,15 +80,15 @@ describe('isClashPick', () => {
     expect(isClashPick(secondPick, [firstPick, secondPick], options, events)).toBe(false)
   })
 
-  it('is NOT a clash when the opposing pick came AFTER this pick', () => {
+  it('IS a clash even when the opposing pick came AFTER this pick', () => {
     const events = [makeEvent()]
     const options = makeTwoSidedOptions()
 
     const firstPick  = makePick({ id: 'pick-0', userId: 'user-1', betOptionId: 'opt-home', createdAt: t(0) })
     const laterPick  = makePick({ id: 'pick-1', userId: 'user-2', betOptionId: 'opt-away', createdAt: t(100) })
 
-    // firstPick was made before anyone was on the other side → not a clash
-    expect(isClashPick(firstPick, [firstPick, laterPick], options, events)).toBe(false)
+    // clashes are multi-directional — both sides count regardless of order
+    expect(isClashPick(firstPick, [firstPick, laterPick], options, events)).toBe(true)
   })
 
   it('counts clashes correctly across a full pick list', () => {
@@ -99,8 +99,8 @@ describe('isClashPick', () => {
     const p2 = makePick({ id: 'p2', userId: 'user-2', betOptionId: 'opt-away', createdAt: t(100) })
 
     const allPicks = [p1, p2]
-    expect(isClashPick(p1, allPicks, options, events)).toBe(false) // p1 was first
-    expect(isClashPick(p2, allPicks, options, events)).toBe(true)  // p2 clashes p1
+    expect(isClashPick(p1, allPicks, options, events)).toBe(true)  // both sides clash
+    expect(isClashPick(p2, allPicks, options, events)).toBe(true)  // both sides clash
   })
 })
 

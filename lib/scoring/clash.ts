@@ -16,10 +16,7 @@ export function isClashPick(
   if (!opposingOption) return false
 
   return allPicks.some(
-    p =>
-      p.betOptionId === opposingOption.id &&
-      p.userId !== pick.userId &&
-      new Date(p.createdAt) < new Date(pick.createdAt),
+    p => p.betOptionId === opposingOption.id && p.userId !== pick.userId,
   )
 }
 
