@@ -30,6 +30,42 @@ const statusBadge: Record<GameStatus, 'default' | 'pending' | 'win'> = {
   complete:    'win',
 }
 
+// Typical duration in minutes by sport
+const SPORT_DURATIONS: Record<string, number> = {
+  'Australian Football': 150,
+  'Basketball':          135,
+  'Boxing':              90,
+  'Cricket':             480,
+  'Disc Golf':           300,
+  'Golf':                360,
+  'Hockey':              150,
+  'Horse Racing':        10,
+  'Lacrosse':            120,
+  'Motorsport':          60,
+  'NASCAR':              210,
+  'Rugby':               120,
+  'Soccer':              115,
+  'Tennis':              120,
+}
+
+function formatTimeRange(startIso: string, sport: string): string {
+  const start = new Date(startIso)
+  const fmt = (d: Date) => d.toLocaleTimeString('en-US', {
+    timeZone: 'America/Chicago',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+  const durationMin = SPORT_DURATIONS[sport]
+  const startStr = fmt(start) + ' CT'
+  if (!durationMin) return startStr
+  const end = new Date(start.getTime() + durationMin * 60_000)
+  const h = Math.floor(durationMin / 60)
+  const m = durationMin % 60
+  const durStr = m === 0 ? `${h}h` : `${h}h ${m}m`
+  return `${startStr} → ~${fmt(end)} CT (${durStr})`
+}
+
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
 interface BetOption {
@@ -141,6 +177,9 @@ function EventResultRow({ event, now, bzId }: { event: Event; now: Date; bzId: s
             {sportEmoji(event.sport)} {event.name}
           </span>
           <span className="ml-2 text-xs text-muted">{event.sport} · {event.bet_type}</span>
+          {event.start_time_et && (
+            <div className="text-xs text-muted/60 mt-0.5">{formatTimeRange(event.start_time_et, event.sport)}</div>
+          )}
         </div>
         <Badge variant={statusBadge[status]}>{statusLabel[status]}</Badge>
       </div>
@@ -253,6 +292,9 @@ function SlateGameResultRow({ game, now, prefill, bzId }: {
             {sportEmoji(game.sport_label)} {game.away_team} @ {game.home_team}
           </span>
           <span className="ml-2 text-xs text-muted">{game.sport_label}</span>
+          {game.start_time_et && (
+            <div className="text-xs text-muted/60 mt-0.5">{formatTimeRange(game.start_time_et, game.sport_label)}</div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {prefill && <Badge variant="admin">API</Badge>}
