@@ -114,11 +114,19 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
     const allSportKeys = [...new Set([...slateSportKeys, ...eventSportKeys])]
 
     const scoresByKey: Record<string, OddsApiGame[]> = {}
+    const fetchErrors: string[] = []
     await Promise.allSettled(
       allSportKeys.map(async key => {
-        scoresByKey[key] = await fetchScores(key)
+        try {
+          scoresByKey[key] = await fetchScores(key)
+        } catch (e: any) {
+          fetchErrors.push(`${key}: ${e.message}`)
+        }
       })
     )
+    if (fetchErrors.length) {
+      return { proposed: [], proposedEvents: [], notFound: [], notFoundEvents: [], error: `API fetch failed — ${fetchErrors.join('; ')}` }
+    }
 
     // ── Process slate games ───────────────────────────────────────────────────
 
