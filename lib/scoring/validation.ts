@@ -1,4 +1,4 @@
-import { isClashPick, wouldCreateClash, countAvailableClashOpportunities } from './clash'
+import { isClashPick } from './clash'
 import type { ValidateDraftTurnInput, ValidationResult } from './types'
 
 export function validateDraftTurn({
@@ -59,32 +59,17 @@ export function validateDraftTurn({
     }
   }
 
-  // Combined mandatory check: required + achievable clash picks must all fit in remaining rounds.
-  // If a pick satisfies neither requirement, block it.
+  // Required-pick enforcement: if remaining rounds must all go to required events, block optional picks.
   const proposedEvent = proposedOption ? events.find(e => e.id === proposedOption.eventId) : null
 
-  if (proposedOption && roundsRemaining > 0) {
-    const availableClashOps = countAvailableClashOpportunities(userId, playerPicks, allPicks, betOptions, events)
-    const effectiveClashNeeded = Math.min(clashPicksNeeded, availableClashOps)
-    const mandatoryNeeded = requiredRemaining.length + effectiveClashNeeded
-
-    if (mandatoryNeeded >= roundsRemaining) {
-      const isRequiredPick = proposedEvent?.category === 'required'
-      const isClashCreating = wouldCreateClash(userId, proposedBetOptionId, allPicks, betOptions, events)
-
-      if (!isRequiredPick && !isClashCreating) {
-        const parts: string[] = []
-        if (requiredRemaining.length > 0)
-          parts.push(`${requiredRemaining.length} required pick${requiredRemaining.length !== 1 ? 's' : ''}`)
-        if (effectiveClashNeeded > 0)
-          parts.push(`${effectiveClashNeeded} clash pick${effectiveClashNeeded !== 1 ? 's' : ''}`)
-        const r = roundsRemaining
-        return {
-          valid: false,
-          reason: `${who} must use remaining ${r} round${r !== 1 ? 's' : ''} for ${parts.join(' and ')}.`,
-          requiredRemaining,
-          clashPicksNeeded,
-        }
+  if (proposedOption && roundsRemaining > 0 && requiredRemaining.length >= roundsRemaining) {
+    if (proposedEvent?.category !== 'required') {
+      const r = roundsRemaining
+      return {
+        valid: false,
+        reason: `${who} must use remaining ${r} round${r !== 1 ? 's' : ''} for ${requiredRemaining.length} required pick${requiredRemaining.length !== 1 ? 's' : ''}.`,
+        requiredRemaining,
+        clashPicksNeeded,
       }
     }
   }

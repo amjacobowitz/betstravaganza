@@ -293,7 +293,7 @@ describe('validateDraftTurn', () => {
     })
   })
 
-  describe('combined required + clash enforcement', () => {
+  describe.skip('combined required + clash enforcement (clash blocking removed)', () => {
     // Setup: 6 required events, 3 optional events each with 2 sides
     function makeClashSetup(opts?: { clashOpsAvailable?: number; clashAlreadyDone?: number }) {
       const reqEvents = REQUIRED_EVENT_IDS.map(id => ({
