@@ -76,11 +76,12 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
       .eq('betstravaganza_id', bzId)
       .lt('start_time_et', now)
 
-    const { data: existingSlateResults } = slateGames?.length
-      ? await supabase.from('slate_results').select('slate_game_id').in('slate_game_id', slateGames.map(g => g.id))
-      : Promise.resolve({ data: [] })
+    const slateIds = (slateGames ?? []).map(g => g.id)
+    const { data: existingSlateResults } = slateIds.length
+      ? await supabase.from('slate_results').select('slate_game_id').in('slate_game_id', slateIds)
+      : { data: [] as { slate_game_id: string }[] }
 
-    const savedSlate = new Set((existingSlateResults ?? []).map((r: any) => r.slate_game_id))
+    const savedSlate = new Set((existingSlateResults ?? []).map(r => r.slate_game_id))
     const pendingSlate = (slateGames ?? []).filter(g => !savedSlate.has(g.id))
 
     // ── Draft pick events (binary win/loss only) ───────────────────────────────
@@ -91,9 +92,10 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
       .eq('betstravaganza_id', bzId)
       .lt('start_time_et', now)
 
-    const { data: existingEventResults } = rawEvents?.length
-      ? await supabase.from('results').select('event_id').in('event_id', (rawEvents ?? []).map((e: any) => e.id))
-      : Promise.resolve({ data: [] })
+    const eventIds = (rawEvents ?? []).map((e: any) => e.id)
+    const { data: existingEventResults } = eventIds.length
+      ? await supabase.from('results').select('event_id').in('event_id', eventIds)
+      : { data: [] as { event_id: string }[] }
 
     const savedEvents = new Set((existingEventResults ?? []).map((r: any) => r.event_id))
 
