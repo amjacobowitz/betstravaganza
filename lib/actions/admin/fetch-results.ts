@@ -84,8 +84,14 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
 
       const allApiGames = scoresByKey[sportKey] ?? []
 
-      // Skip in-progress games per user request
-      const completedApiGames = allApiGames.filter(g => g.completed)
+      // Narrow to games that started within ±18 hours of our scheduled start to avoid
+      // matching a completed game from a previous day when today's game is still in progress.
+      const refMs = game.start_time_et ? new Date(game.start_time_et).getTime() : null
+      const windowedGames = refMs
+        ? allApiGames.filter(g => Math.abs(new Date(g.commence_time).getTime() - refMs) < 18 * 60 * 60 * 1000)
+        : allApiGames
+
+      const completedApiGames = windowedGames.filter(g => g.completed)
       const match = matchGame(game.away_team, game.home_team, completedApiGames, game.start_time_et ?? undefined)
 
       const extractScores = (apiGame: OddsApiGame) => {
@@ -97,7 +103,7 @@ export async function fetchResultsFromAPI(bzId: string): Promise<FetchResultsRes
 
       if (!match) {
         // Try in-progress games — if they have live scores, surface them as overrideable proposals
-        const inProgressMatch = matchGame(game.away_team, game.home_team, allApiGames.filter(g => !g.completed), game.start_time_et ?? undefined)
+        const inProgressMatch = matchGame(game.away_team, game.home_team, windowedGames.filter(g => !g.completed), game.start_time_et ?? undefined)
         const liveScores = inProgressMatch ? extractScores(inProgressMatch) : null
         if (liveScores) {
           proposed.push({
