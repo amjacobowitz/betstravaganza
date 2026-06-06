@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import {
   computePlayerBankroll,
   computeConfidenceBonus,
@@ -25,7 +25,7 @@ export interface MarketHistoryData {
 }
 
 export async function getMarketHistory(betstravaganzaId: string): Promise<MarketHistoryData> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [
     { data: bzData },

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import {
   computePlayerBankroll,
   computeConfidenceBonus,
@@ -28,7 +28,7 @@ export interface LeaderboardEntry {
 }
 
 export async function getLeaderboard(betstravaganzaId: string): Promise<LeaderboardEntry[]> {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [
     { data: bzData },
